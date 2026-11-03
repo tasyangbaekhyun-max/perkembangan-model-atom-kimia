@@ -1,4 +1,4 @@
-import { ArrowLeft, Layers, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react'
+import { ArrowLeft, Layers, CheckCircle2, AlertTriangle, ArrowRight, Library } from 'lucide-react'
 import { ATOM_MODELS } from '../../data/atomModels'
 
 interface ComparisonViewProps {
@@ -93,6 +93,82 @@ export function ComparisonView({ onBackToHome, onSelectModel }: ComparisonViewPr
           </tbody>
         </table>
       </div>
+
+      {/* Daftar Pustaka & Landasan Epistemologi Sejarah Sains */}
+      <section className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+              <Library className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-black text-slate-900 text-sm md:text-base">
+                Daftar Pustaka: Epistemologi &amp; Sejarah Perkembangan Model Atom
+              </h3>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Dasar konseptual pergeseran paradigma ilmiah dari mekanika klasik hingga mekanika kuantum
+              </p>
+            </div>
+          </div>
+
+          <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-purple-50 text-purple-800 border border-purple-200 self-start sm:self-auto">
+            Pedagogi Sejarah Sains
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs flex flex-col justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 block w-fit mb-1.5">
+                Pergeseran Paradigma
+              </span>
+              <p className="font-serif font-bold text-slate-900 leading-relaxed">
+                Kuhn, T. S. (1996). <em>The Structure of Scientific Revolutions</em> (3rd ed.). Chicago: The University of Chicago Press.
+              </p>
+              <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed font-medium">
+                Mendasari penyajian tabel: sains berkembang bukan karena model lama salah total, melainkan karena akumulasi anomali yang memicu revolusi paradigma baru.
+              </p>
+            </div>
+            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-slate-200">
+              Ref: Paradigma Thomson ke Rutherford
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs flex flex-col justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 block w-fit mb-1.5">
+                Pendidikan Kimia &amp; Representasi
+              </span>
+              <p className="font-serif font-bold text-slate-900 leading-relaxed">
+                Johnstone, A. H. (1991). Why is science difficult to learn? Things are seldom what they seem. <em>Journal of Computer Assisted Learning</em>, 7(2), 75–83.
+              </p>
+              <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed font-medium">
+                Dasar integrasi tiga level pemahaman kimia (makroskopik, submikroskopik, dan simbolik) guna mencegah miskonsepsi abstrak.
+              </p>
+            </div>
+            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-slate-200">
+              Ref: Johnstone&apos;s Chemistry Triangle
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs flex flex-col justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 block w-fit mb-1.5">
+                Historiografi Teori Kuantum
+              </span>
+              <p className="font-serif font-bold text-slate-900 leading-relaxed">
+                Pais, A. (1991). <em>Niels Bohr&apos;s Times: In Physics, Philosophy, and Polity</em>. Oxford: Oxford University Press.
+              </p>
+              <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed font-medium">
+                Dokumentasi historis terperinci mengenai korespondensi Bohr-Rutherford dan transisi mekanika matriks Heisenberg menuju mekanika gelombang Schrödinger.
+              </p>
+            </div>
+            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-slate-200">
+              Ref: Transisi Rutherford-Bohr-Kuantum
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

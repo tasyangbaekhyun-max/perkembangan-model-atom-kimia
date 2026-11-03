@@ -18,6 +18,18 @@ export interface ScientistProfile {
   funFact: string
 }
 
+export interface ReferenceItem {
+  id: string
+  citation: string // Format sitasi baku (APA 7th Edition)
+  title: string
+  authors: string
+  year: string | number
+  sourceName: string
+  type: 'book' | 'journal' | 'website' | 'curriculum'
+  url?: string
+  annotation?: string
+}
+
 export interface AtomModel {
   id: 'democritus' | 'dalton' | 'thomson' | 'rutherford' | 'bohr' | 'quantum'
   name: string
@@ -37,6 +49,7 @@ export interface AtomModel {
   color: string
   theme: AtomTheme
   scientistProfile: ScientistProfile
+  references: ReferenceItem[]
 }
 
 export interface LearningLog {

@@ -9,8 +9,8 @@ export const ATOM_MODELS: AtomModel[] = [
     summary: 'Materi tidak bersifat kontinu tanpa batas, melainkan tersusun atas partikel terkecil yang tidak dapat dipotong atau dibagi lagi yang dinamakan atomos.',
     analogy: 'Membelah sebutir pasir atau buah terus-menerus hingga mencapai unit terkecil yang tak dapat dibelah lagi.',
     representations: {
-      macroscopic: 'Materi padat (batu, kayu, air) yang jika dipotong terus-menerus memiliki batas pemotongan fisik terkecil.',
-      submicroscopic: 'Partikel-partikel pejal, homogen, dan tak berongga dengan bentuk geometris tertentu yang saling berkait secara mekanik.',
+      macroscopic: 'Materi padat (batu, kayu, perhiasan emas) yang jika dipotong terus-menerus memiliki batas pemotongan fisik terkecil tanpa kehilangan sifat kimianya.',
+      submicroscopic: 'Partikel-partikel pejal, homogen, dan tak berongga dengan bentuk geometris tertentu yang saling berkait secara mekanik di dalam ruang hampa.',
       symbolic: 'Istilah Yunani: "a" (tidak) + "tomos" (terbagi/terpotong) = "Atomos".'
     },
     chemicalRules: [
@@ -40,7 +40,51 @@ export const ATOM_MODELS: AtomModel[] = [
       bio: 'Democritus adalah seorang filsuf Yunani Kuno yang dikenal dengan kepribadiannya yang selalu riang sehingga dijuluki "The Laughing Philosopher". Bersama gurunya Leukippos, ia merumuskan gagasan awal bahwa seluruh alam semesta tersusun atas ruang hampa (void) dan partikel-partikel tak terbagi yang kekal.',
       keyContribution: 'Mencetuskan istilah "Atomos" (tidak terbagi) sebagai hipotesis filosofis pertama tentang batas materi.',
       funFact: 'Democritus berkelana hingga ke Mesir, Persia, dan India untuk mempelajari geometri dan astronomi sebelum kembali ke Yunani.'
-    }
+    },
+    references: [
+      {
+        id: 'ref-dem-1',
+        citation: 'Berryman, S. (2016). Ancient Atomism. The Stanford Encyclopedia of Philosophy (Winter 2016 Edition), Edward N. Zalta (ed.).',
+        title: 'Ancient Atomism',
+        authors: 'Sylvia Berryman',
+        year: 2016,
+        sourceName: 'The Stanford Encyclopedia of Philosophy',
+        type: 'website',
+        url: 'https://plato.stanford.edu/entries/atomism-ancient/',
+        annotation: 'Kajian komprehensif mengenai ontologi partikel atomos dan konsep ruang hampa (void) menurut Leukippos dan Democritus.'
+      },
+      {
+        id: 'ref-dem-2',
+        citation: 'Chang, R., & Goldsby, K. A. (2016). Chemistry (12th ed.). New York: McGraw-Hill Education, Chapter 2: Atoms, Molecules, and Ions.',
+        title: 'Chemistry (12th Edition)',
+        authors: 'Raymond Chang & Kenneth A. Goldsby',
+        year: 2016,
+        sourceName: 'McGraw-Hill Education',
+        type: 'book',
+        annotation: 'Buku teks standar kimia dasar universitas yang merangkum sejarah peralihan dari spekulasi Democritus ke teori ilmiah Dalton.'
+      },
+      {
+        id: 'ref-dem-3',
+        citation: 'Kirk, G. S., Raven, J. E., & Schofield, M. (1983). The Presocratic Philosophers: A Critical History with a Selection of Texts (2nd ed.). Cambridge University Press.',
+        title: 'The Presocratic Philosophers: A Critical History',
+        authors: 'G. S. Kirk, J. E. Raven, & M. Schofield',
+        year: 1983,
+        sourceName: 'Cambridge University Press',
+        type: 'book',
+        annotation: 'Sumber primer kutipan fragmen filosofis Democritus mengenai materi diskret versus kontinu.'
+      },
+      {
+        id: 'ref-dem-4',
+        citation: 'Puspaningsih, A. R., Tjahjadarmawan, E., & Krisdianti, N. R. (2021). Buku Panduan Guru dan Siswa Ilmu Pengetahuan Alam untuk SMA Kelas X. Jakarta: Pusat Perbukuan Balitbangbud Kemendikbudristek.',
+        title: 'Buku Ilmu Pengetahuan Alam SMA Kelas X (Fase E)',
+        authors: 'Ayuk Ratna Puspaningsih, dkk.',
+        year: 2021,
+        sourceName: 'Kementerian Pendidikan, Kebudayaan, Riset, dan Teknologi Republik Indonesia',
+        type: 'curriculum',
+        url: 'https://buku.kemdikbud.go.id/',
+        annotation: 'Buku teks kurikulum nasional resmi Indonesia untuk Capaian Pembelajaran Kimia Fase E.'
+      }
+    ]
   },
   {
     id: 'dalton',
@@ -50,7 +94,7 @@ export const ATOM_MODELS: AtomModel[] = [
     summary: 'Atom adalah bola pejal masif tanpa struktur internal yang tidak dapat diciptakan atau dimusnahkan. Atom unsur sejenis identik, dan unsur berbeda bergabung dengan rasio bilangan bulat sederhana.',
     analogy: 'Bola biliar pejal keras yang tidak dapat ditembus atau dipecahkan.',
     representations: {
-      macroscopic: 'Hukum Kekekalan Massa (Lavoisier) dan Hukum Perbandingan Tetap (Proust) pada reaksi kimia terukur.',
+      macroscopic: 'Hukum Kekekalan Massa (Lavoisier) dan Hukum Perbandingan Tetap (Proust) pada reaksi kimia terukur di timbangan analitik.',
       submicroscopic: 'Bola pejal padat dengan massa dan ukuran spesifik untuk tiap unsur, bersatu membentuk molekul senyawa tanpa bertukar partikel dalam.',
       symbolic: 'Simbol lingkaran awal Dalton dan rumus perbandingan stoikiometri sederhana (misal H₂O, CO, CO₂).'
     },
@@ -81,7 +125,41 @@ export const ATOM_MODELS: AtomModel[] = [
       bio: 'John Dalton adalah seorang kimiawan, fisikawan, dan meteorologis asal Inggris. Ia adalah ilmuwan pertama yang memformalkan konsep atom ke dalam teori ilmiah berbasis hukum kekekalan massa dan perbandingan tetap, mengukur massa atom relatif unsur-unsur kimia.',
       keyContribution: 'Merumuskan Teori Atom Ilmiah Pertama (1803) dan Hukum Perbandingan Berganda (Dalton).',
       funFact: 'Dalton juga merupakan orang pertama yang meneliti cacat penglihatan buta warna secara ilmiah (yang dialaminya sendiri), sehingga kondisi ini sering disebut Daltonisme.'
-    }
+    },
+    references: [
+      {
+        id: 'ref-dal-1',
+        citation: 'Dalton, J. (1808). A New System of Chemical Philosophy (Vol. 1). London: Printed by S. Russell for R. Bickerstaff.',
+        title: 'A New System of Chemical Philosophy',
+        authors: 'John Dalton',
+        year: 1808,
+        sourceName: 'R. Bickerstaff, London',
+        type: 'book',
+        url: 'https://archive.org/details/newsystemofchemi01daltuoft',
+        annotation: 'Karya monograf orisinal John Dalton yang memuat formulasi postulat teori atom ilmiah dan tabel bobot atom relatif pertama.'
+      },
+      {
+        id: 'ref-dal-2',
+        citation: 'Petrucci, R. H., Herring, F. G., Madura, J. D., & Bissonnette, C. (2017). General Chemistry: Principles and Modern Applications (11th ed.). Toronto: Pearson Canada.',
+        title: 'General Chemistry: Principles and Modern Applications',
+        authors: 'Ralph H. Petrucci, F. Geoffrey Herring, Jeffry D. Madura, & Carey Bissonnette',
+        year: 2017,
+        sourceName: 'Pearson Canada',
+        type: 'book',
+        annotation: 'Menjelaskan hukum perbandingan berganda, hukum kekekalan massa Lavoisier, dan hukum Proust sebagai pondasi mekanika kimia.'
+      },
+      {
+        id: 'ref-dal-3',
+        citation: 'Science History Institute. (2023). John Dalton: British Chemist and Meteorologist. Historical Biographies.',
+        title: 'John Dalton: Historical Profile',
+        authors: 'Science History Institute Staff',
+        year: 2023,
+        sourceName: 'Science History Institute, Philadelphia',
+        type: 'website',
+        url: 'https://www.sciencehistory.org/historical-profile/john-dalton',
+        annotation: 'Biografi dan kurasi instrumen bersejarah eksperimen gas dan stoikiometri John Dalton.'
+      }
+    ]
   },
   {
     id: 'thomson',
@@ -91,9 +169,9 @@ export const ATOM_MODELS: AtomModel[] = [
     summary: 'Atom berbentuk bola bermuatan positif yang homogen dan menyebar, dengan partikel-partikel bermuatan negatif (elektron) tersebar merata di dalamnya seperti kismis dalam roti.',
     analogy: 'Roti kismis (plum pudding) atau buah semangka: daging merah adalah bola positif, bijinya adalah elektron.',
     representations: {
-      macroscopic: 'Sinar katoda yang berbelok ke arah kutub positif medan listrik dalam tabung vakum.',
+      macroscopic: 'Berkas sinar katoda yang berbelok ke arah kutub positif medan listrik dalam tabung lucutan gas bertekanan rendah.',
       submicroscopic: 'Bola kabut bermuatan positif bervolume besar dengan elektron-elektron kecil terbenam netral secara keseluruhan: Σ(+) = Σ(-).',
-      symbolic: 'Rasio muatan terhadap massa elektron: e/m = 1.7588 × 10¹¹ C/kg.'
+      symbolic: 'Rasio muatan terhadap massa elektron: e/m = 1.7588 × 10¹¹ C/kg. Gaya Lorentz: F = e(E + v × B).'
     },
     chemicalRules: [
       'Atom bukan partikel terkecil yang tak terbagi, melainkan memiliki partikel subatomik bermuatan negatif (elektron).',
@@ -122,7 +200,51 @@ export const ATOM_MODELS: AtomModel[] = [
       bio: 'J.J. Thomson adalah fisikawan terkemuka yang menjabat sebagai direktur Cavendish Laboratory di Universitas Cambridge. Pada tahun 1897, lewat eksperimen tabung sinar katoda, ia membuktikan bahwa atom memiliki partikel subatomik universal bermuatan negatif yang dinamakan elektron.',
       keyContribution: 'Menemukan elektron (partikel subatomik pertama) dan mengusulkan Model Atom Roti Kismis (1897).',
       funFact: 'Tujuh orang asisten risetnya di laboratorium Cavendish kelak memenangkan Hadiah Nobel, dan putranya sendiri (George Paget Thomson) juga meraih Hadiah Nobel Fisika tahun 1937!'
-    }
+    },
+    references: [
+      {
+        id: 'ref-tho-1',
+        citation: 'Thomson, J. J. (1897). Cathode Rays. Philosophical Magazine, 44(269), 293–316. doi:10.1080/14786449708621070.',
+        title: 'Cathode Rays',
+        authors: 'Sir Joseph John Thomson',
+        year: 1897,
+        sourceName: 'Philosophical Magazine, Fifth Series',
+        type: 'journal',
+        url: 'https://doi.org/10.1080/14786449708621070',
+        annotation: 'Makalah ilmiah fundamental tempat Thomson mengumumkan penemuan partikel subatomik "korpuskel" dan pengukuran rasio e/m.'
+      },
+      {
+        id: 'ref-tho-2',
+        citation: 'Thomson, J. J. (1904). On the Structure of the Atom: an Investigation of the Stability and Periods of Oscillation of a number of Corpuscles arranged at equal intervals in a Sphere of uniform positive Electrification. Philosophical Magazine, 7(39), 237–265.',
+        title: 'On the Structure of the Atom (Plum Pudding Model)',
+        authors: 'Sir Joseph John Thomson',
+        year: 1904,
+        sourceName: 'Philosophical Magazine, Sixth Series',
+        type: 'journal',
+        annotation: 'Formulasi matematis dan fisik model atom roti kismis dengan elektron bermuatan negatif di dalam bola fluida bermuatan positif.'
+      },
+      {
+        id: 'ref-tho-3',
+        citation: 'The Nobel Foundation. (1906). J.J. Thomson – Nobel Lecture: Carriers of Negative Electricity. NobelPrize.org.',
+        title: 'Nobel Lecture: Carriers of Negative Electricity',
+        authors: 'J.J. Thomson / Nobel Media AB',
+        year: 1906,
+        sourceName: 'NobelPrize.org',
+        type: 'website',
+        url: 'https://www.nobelprize.org/prizes/physics/1906/thomson/lecture/',
+        annotation: 'Pidato penganugerahan Hadiah Nobel Fisika tahun 1906 atas penyelidikan teoritis dan eksperimental konduksi listrik oleh gas.'
+      },
+      {
+        id: 'ref-tho-4',
+        citation: 'Brown, T. L., LeMay, H. E., Bursten, B. E., Murphy, C. J., Woodward, P. M., & Stoltzfus, M. W. (2018). Chemistry: The Central Science (14th ed.). New York: Pearson.',
+        title: 'Chemistry: The Central Science',
+        authors: 'Theodore L. Brown, dkk.',
+        year: 2018,
+        sourceName: 'Pearson Education',
+        type: 'book',
+        annotation: 'Buku teks rujukan kimia internasional mengenai eksperimen tabung sinar katoda dan rasio muatan-massa Millikan & Thomson.'
+      }
+    ]
   },
   {
     id: 'rutherford',
@@ -132,7 +254,7 @@ export const ATOM_MODELS: AtomModel[] = [
     summary: 'Atom terdiri dari inti (nucleus) bermuatan positif yang sangat kecil dan bermassa sangat pekat di pusat, dikelilingi oleh elektron-elektron di ruang hampa yang sangat luas.',
     analogy: 'Tata surya mini dengan matahari sebagai inti positif padat dan planet sebagai elektron di ruang angkasa kosong.',
     representations: {
-      macroscopic: 'Hamburan berkas partikel alfa (α) berkecepatan tinggi saat menembus lempeng emas tipis setebal beberapa ratus atom.',
+      macroscopic: 'Hamburan berkas partikel alfa (α) berkecepatan tinggi saat menembus lempeng emas tipis setebal beberapa ratus atom pada layar pendar seng sulfida (ZnS).',
       submicroscopic: 'Sebagian besar volume atom adalah ruang hampa (>99.99%). Inti atom di pusat berdiameter ~10⁻¹⁵ m, berjarak jauh dari elektron (~10⁻¹⁰ m).',
       symbolic: 'Rasio dimensi: r_inti / r_atom ≈ 1 : 100.000. Hamburan Coulomb: F = k (q₁ q₂) / r².'
     },
@@ -163,7 +285,40 @@ export const ATOM_MODELS: AtomModel[] = [
       bio: 'Ernest Rutherford lahir di Selandia Baru dan menjadi salah satu eksperimentalis fisika terbesar sepanjang masa. Bersama Hans Geiger dan Ernest Marsden, ia menembakkan partikel alfa ke lempeng emas tipis dan membuktikan bahwa hampir seluruh massa atom terkonsentrasi di sebuah inti atom kecil di pusat.',
       keyContribution: 'Menemukan Inti Atom (Nucleus) bermuatan positif dan menamai partikel alfa, beta, serta proton.',
       funFact: 'Unsur kimia bernomor atom 104 dinamakan Rutherfordium (Rf) sebagai penghormatan abadi atas kontribusi besarnya dalam fisika nuklir.'
-    }
+    },
+    references: [
+      {
+        id: 'ref-rut-1',
+        citation: 'Rutherford, E. (1911). The Scattering of α and β Particles by Matter and the Structure of the Atom. Philosophical Magazine, Series 6, 21(125), 669–688.',
+        title: 'The Scattering of α and β Particles by Matter and the Structure of the Atom',
+        authors: 'Ernest Rutherford',
+        year: 1911,
+        sourceName: 'Philosophical Magazine',
+        type: 'journal',
+        url: 'https://doi.org/10.1080/14786440508637080',
+        annotation: 'Makalah legendaris penemuan inti atom (nucleus) dan rumus penampang lintang diferensial hamburan Coulomb Rutherford.'
+      },
+      {
+        id: 'ref-rut-2',
+        citation: 'Geiger, H., & Marsden, E. (1909). On a Diffuse Reflection of the α-Particles. Proceedings of the Royal Society of London. Series A, 82(557), 495–500.',
+        title: 'On a Diffuse Reflection of the α-Particles',
+        authors: 'Hans Geiger & Ernest Marsden',
+        year: 1909,
+        sourceName: 'Proceedings of the Royal Society',
+        type: 'journal',
+        annotation: 'Data eksperimen empiris pemantulan partikel alfa 1 dari 8.000 partikel oleh lempeng emas yang memicu lahirnya model inti atom.'
+      },
+      {
+        id: 'ref-rut-3',
+        citation: 'Oxtoby, D. W., Gillis, H. P., & Butler, L. J. (2015). Principles of Modern Chemistry (8th ed.). Boston: Cengage Learning.',
+        title: 'Principles of Modern Chemistry',
+        authors: 'David W. Oxtoby, H. P. Gillis, & Laurie J. Butler',
+        year: 2015,
+        sourceName: 'Cengage Learning',
+        type: 'book',
+        annotation: 'Ulasan mendalam paradoks elektrodinamika klasik Maxwell pada kestabilan orbit elektron Rutherford.'
+      }
+    ]
   },
   {
     id: 'bohr',
@@ -173,9 +328,9 @@ export const ATOM_MODELS: AtomModel[] = [
     summary: 'Elektron mengelilingi inti pada lintasan melingkar stasioner tertentu dengan tingkat energi terkuantisasi tanpa memancarkan radiasi. Elektron memancarkan atau menyerap energi foton hanya saat melompat antar tingkat energi.',
     analogy: 'Anak tangga stasioner: seseorang hanya bisa berdiri di anak tangga ke-1, ke-2, atau ke-3, tidak bisa melayang di antara anak tangga.',
     representations: {
-      macroscopic: 'Spektrum garis emisi warna-warni yang khas pada lampu gas tabung lucutan hidrogen (garis Balmer merah 656 nm, sian 486 nm, dsb.).',
-      submicroscopic: 'Kulit-kulit elektron lingkaran diskret (n = 1, 2, 3, 4, 5 atau kulit K, L, M, N, O) dengan jari-jari r_n = n² · r₁.',
-      symbolic: 'Persamaan kuantisasi: L = n(h / 2π). Energi foton: ΔE = hν = hc/λ = E_akhir - E_awal.'
+      macroscopic: 'Spektrum garis emisi warna-warni yang khas pada lampu gas tabung lucutan hidrogen (garis Balmer merah 656 nm, sian 486 nm, biru 434 nm, ungu 410 nm).',
+      submicroscopic: 'Kulit-kulit elektron lingkaran diskret (n = 1, 2, 3, 4, 5 atau kulit K, L, M, N, O) dengan jari-jari r_n = n² · a₀.',
+      symbolic: 'Persamaan kuantisasi: L = n(h / 2π). Energi foton: ΔE = hν = hc/λ = -R_H (1/n₂² - 1/n₁²).'
     },
     chemicalRules: [
       'Elektron hanya mengitari inti pada lintasan tertentu yang disebut keadaan stasioner (tingkat energi tertentu) tanpa melepaskan energi.',
@@ -204,7 +359,41 @@ export const ATOM_MODELS: AtomModel[] = [
       bio: 'Niels Bohr adalah fisikawan asal Denmark yang mendirikan Institut Fisika Teoretis di Kopenhagen. Bohr berhasil memecahkan kelemahan model Rutherford dengan mempostulatkan bahwa elektron hanya boleh berada di lintasan stasioner melingkar dengan momentum sudut terkuantisasi.',
       keyContribution: 'Mengembangkan Model Atom Kuantum Pertama (1913) yang berhasil menjelaskan spektrum garis emisi gas hidrogen.',
       funFact: 'Semasa muda di Kopenhagen, Niels Bohr adalah seorang atlet sepak bola berbakat yang bermain sebagai penjaga gawang (kiper) di klub ternama Akademisk Boldklub!'
-    }
+    },
+    references: [
+      {
+        id: 'ref-boh-1',
+        citation: 'Bohr, N. (1913). On the Constitution of Atoms and Molecules, Part I. Philosophical Magazine, Series 6, 26(151), 1–25.',
+        title: 'On the Constitution of Atoms and Molecules',
+        authors: 'Niels Bohr',
+        year: 1913,
+        sourceName: 'Philosophical Magazine',
+        type: 'journal',
+        url: 'https://doi.org/10.1080/14786441308634955',
+        annotation: 'Trilogi makalah revolusioner Bohr yang memperkenalkan kuantisasi momentum sudut dan rumus konstanta Rydberg.'
+      },
+      {
+        id: 'ref-boh-2',
+        citation: 'The Nobel Foundation. (1922). Niels Bohr – Nobel Lecture: The Structure of the Atom. NobelPrize.org.',
+        title: 'The Structure of the Atom (Nobel Lecture)',
+        authors: 'Niels Bohr / Nobel Media AB',
+        year: 1922,
+        sourceName: 'NobelPrize.org',
+        type: 'website',
+        url: 'https://www.nobelprize.org/prizes/physics/1922/bohr/lecture/',
+        annotation: 'Kuliah Nobel Bohr mengenai perkembangan teori kuantum atom dan penjelasan tabel periodik unsur.'
+      },
+      {
+        id: 'ref-boh-3',
+        citation: 'Silberberg, M. S., & Amateis, P. (2021). Chemistry: The Molecular Nature of Matter and Change (9th ed.). New York: McGraw-Hill Education.',
+        title: 'Chemistry: The Molecular Nature of Matter and Change',
+        authors: 'Martin S. Silberberg & Patricia Amateis',
+        year: 2021,
+        sourceName: 'McGraw-Hill Education',
+        type: 'book',
+        annotation: 'Pemaparan diagram tingkat energi transisi elektronik hidrogen (Deret Lyman, Balmer, Paschen, Brackett, Pfund).'
+      }
+    ]
   },
   {
     id: 'quantum',
@@ -214,7 +403,7 @@ export const ATOM_MODELS: AtomModel[] = [
     summary: 'Elektron memiliki sifat dualisme gelombang-partikel dan posisinya tidak dapat dipastikan secara simultan dengan momentumnya. Elektron digambarkan oleh fungsi gelombang orbital sebagai awan probabilitas keberadaan elektron.',
     analogy: 'Awan kabut atau baling-baling kipas angin yang berputar kencang: posisi elektron adalah probabilitas densitas kabut di sekitar inti.',
     representations: {
-      macroscopic: 'Pola difraksi dan interferensi berkas elektron melalui kristal, membuktikan sifat gelombang materi.',
+      macroscopic: 'Pola difraksi dan interferensi berkas elektron melalui kristal, membuktikan sifat gelombang materi (Eksperimen Davisson-Germer).',
       submicroscopic: 'Awan elektron 3D (orbital s bola simetris, orbital p dumbbell balon berhadapan) yang menunjukkan wilayah probabilitas terbesar (≥90%) menemukan elektron.',
       symbolic: 'Persamaan Gelombang Schrödinger: ĤΨ = EΨ. 4 Bilangan Kuantum: n (utama), l (azimut), m_l (magnetik), m_s (spin ±½).'
     },
@@ -245,6 +434,61 @@ export const ATOM_MODELS: AtomModel[] = [
       bio: 'Model atom modern lahir dari kolaborasi pemikiran para fisikawan kuantum dunia: Louis de Broglie (dualisme gelombang-partikel), Werner Heisenberg (Prinsip Ketidakpastian), dan Erwin Schrödinger yang merumuskan persamaan gelombang kuantum fundamental. Model ini menggantikan lintasan orbit kaku dengan konsep awan probabilitas elektron (orbital).',
       keyContribution: 'Merumuskan Persamaan Gelombang Kuantum (ĤΨ = EΨ) dan Prinsip Ketidakpastian yang mendefinisikan orbital atom modern.',
       funFact: 'Erwin Schrödinger juga terkenal dengan paradoks pemikiran "Kucing Schrödinger" (Schrödinger’s Cat) untuk menggambarkan keanehan superposisi dalam mekanika kuantum.'
-    }
+    },
+    references: [
+      {
+        id: 'ref-qua-1',
+        citation: 'Schrödinger, E. (1926). Quantisierung als Eigenwertproblem. Annalen der Physik, 384(4), 361–376. doi:10.1002/andp.19263840404.',
+        title: 'Quantisierung als Eigenwertproblem (Quantization as an Eigenvalue Problem)',
+        authors: 'Erwin Schrödinger',
+        year: 1926,
+        sourceName: 'Annalen der Physik',
+        type: 'journal',
+        url: 'https://doi.org/10.1002/andp.19263840404',
+        annotation: 'Makalah pendiri mekanika gelombang kuantum yang merumuskan persamaan diferensial fungsi gelombang orbital atom hidrogen.'
+      },
+      {
+        id: 'ref-qua-2',
+        citation: 'Heisenberg, W. (1927). Über den anschaulichen Inhalt der quantentheoretischen Kinematik und Mechanik. Zeitschrift für Physik, 43(3–4), 172–198.',
+        title: 'The Physical Content of Quantum Kinematics and Mechanics (Uncertainty Principle)',
+        authors: 'Werner Heisenberg',
+        year: 1927,
+        sourceName: 'Zeitschrift für Physik',
+        type: 'journal',
+        annotation: 'Perumusan prinsip ketidakpastian fundamental Δx · Δp ≥ ℏ/2 yang menggugurkan konsep orbit deterministik.'
+      },
+      {
+        id: 'ref-qua-3',
+        citation: 'IUPAC. (2019). Compendium of Chemical Terminology (Gold Book): Definition of Atomic Orbital. International Union of Pure and Applied Chemistry.',
+        title: 'IUPAC Compendium of Chemical Terminology (Gold Book)',
+        authors: 'IUPAC Physical and Biophysical Chemistry Division',
+        year: 2019,
+        sourceName: 'IUPAC Publications',
+        type: 'website',
+        url: 'https://goldbook.iupac.org/terms/view/A00500',
+        annotation: 'Definisi standar kimia internasional untuk orbital atom sebagai fungsi gelombang satu elektron dalam atom.'
+      },
+      {
+        id: 'ref-qua-4',
+        citation: 'Levine, I. N. (2014). Quantum Chemistry (7th ed.). Boston: Pearson Education.',
+        title: 'Quantum Chemistry',
+        authors: 'Ira N. Levine',
+        year: 2014,
+        sourceName: 'Pearson Education',
+        type: 'book',
+        annotation: 'Rujukan standar universitas untuk penyelesaian fungsi gelombang hidrogenik, bilangan kuantum, dan aturan Hund/Aufbau/Pauli.'
+      },
+      {
+        id: 'ref-qua-5',
+        citation: 'Badan Standar, Kurikulum, dan Asesmen Pendidikan (BSKAP). (2022). Keputusan Kepala BSKAP Kemendikbudristek No. 033/H/KR/2022 tentang Capaian Pembelajaran pada Kurikulum Merdeka untuk SMA/MA Fase E. Jakarta: Kemendikbudristek.',
+        title: 'Capaian Pembelajaran Kimia Fase E Kurikulum Merdeka',
+        authors: 'BSKAP Kemendikbudristek RI',
+        year: 2022,
+        sourceName: 'Kemendikbudristek RI',
+        type: 'curriculum',
+        url: 'https://kurikulum.kemdikbud.go.id/',
+        annotation: 'Pedoman kurikulum nasional yang mewajibkan pengenalan model atom hingga mekanika kuantum dan konfigurasi elektron di kelas X SMA.'
+      }
+    ]
   }
 ]

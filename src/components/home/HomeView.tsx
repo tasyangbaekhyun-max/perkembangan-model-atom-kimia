@@ -9,7 +9,11 @@ import {
   Atom,
   BookOpen,
   Award,
-  Compass
+  Compass,
+  BookMarked,
+  ExternalLink,
+  Library,
+  CheckCircle2
 } from 'lucide-react'
 
 interface HomeViewProps {
@@ -255,6 +259,131 @@ export function HomeView({
               Bahasa ilmiah, notasi kimia, persamaan gelombang, serta formula matematis kuantisasi energi (ΔE = hν).
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Daftar Pustaka & Landasan Akademik Terpercaya */}
+      <section className="bg-white border border-slate-200/90 rounded-3xl p-6 md:p-8 shadow-xs flex flex-col gap-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold mb-1">
+              <Library className="w-3.5 h-3.5" /> Standar Keilmuan &amp; Akurasi Materi
+            </div>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">
+              Daftar Pustaka &amp; Rujukan Akademik Utama
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Seluruh materi, visualisasi simulasi, dan instrumen evaluasi AtomLab disusun berdasarkan rujukan buku teks resmi dan literatur ilmiah terakreditasi:
+            </p>
+          </div>
+
+          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 self-start sm:self-auto flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Terverifikasi Ilmiah</span>
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Card 1: Kurikulum Merdeka */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-200 inline-block mb-2">
+                1. Kurikulum Nasional (Kemendikbudristek RI)
+              </span>
+              <p className="text-xs font-serif font-bold text-slate-900 leading-relaxed">
+                Puspaningsih, A. R., Tjahjadarmawan, E., &amp; Krisdianti, N. R. (2021). <em>Buku Panduan Guru dan Siswa Ilmu Pengetahuan Alam untuk SMA Kelas X</em>. Pusat Perbukuan Balitbangbud Kemendikbudristek RI.
+              </p>
+              <p className="text-[11px] text-slate-500 mt-2 font-medium leading-relaxed">
+                Rujukan utama alur tujuan pembelajaran (ATP) dan capaian pembelajaran (CP) Fase E untuk pemahaman struktur materi dasar.
+              </p>
+            </div>
+            <a
+              href="https://buku.kemdikbud.go.id/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:underline pt-2 border-t border-slate-200"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Portal Buku Resmi Kemendikbudristek</span>
+            </a>
+          </div>
+
+          {/* Card 2: Buku Teks Universitas Chang */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 border border-sky-200 inline-block mb-2">
+                2. Buku Teks Kimia Dasar Universitas
+              </span>
+              <p className="text-xs font-serif font-bold text-slate-900 leading-relaxed">
+                Chang, R., &amp; Goldsby, K. A. (2016). <em>Chemistry</em> (12th ed.). New York: McGraw-Hill Education. ISBN: 978-0078021510.
+              </p>
+              <p className="text-[11px] text-slate-500 mt-2 font-medium leading-relaxed">
+                Rujukan konsep dasar hukum kimia (Lavoisier, Proust, Dalton), struktur atom Thomson, Rutherford, dan teori kuantum Bohr.
+              </p>
+            </div>
+            <div className="text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-200">
+              Bab 2: Atoms, Molecules, and Ions • Bab 7: Quantum Theory
+            </div>
+          </div>
+
+          {/* Card 3: Brown & LeMay Chemistry: The Central Science */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200 inline-block mb-2">
+                3. Kimia Modern &amp; Struktur Elektronik
+              </span>
+              <p className="text-xs font-serif font-bold text-slate-900 leading-relaxed">
+                Brown, T. L., LeMay, H. E., Bursten, B. E., Murphy, C. J., Woodward, P. M., &amp; Stoltzfus, M. W. (2018). <em>Chemistry: The Central Science</em> (14th ed.). Pearson.
+              </p>
+              <p className="text-[11px] text-slate-500 mt-2 font-medium leading-relaxed">
+                Rujukan eksperimen hamburan partikel alfa lempeng emas, bentuk orbital probabilitas 3D, dan konfigurasi elektron.
+              </p>
+            </div>
+            <div className="text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-200">
+              Bab 6: Electronic Structure of Atoms
+            </div>
+          </div>
+
+          {/* Card 4: Nobel Prize & IUPAC Gold Book */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200 inline-block mb-2">
+                4. Sumber Primer Sejarah Sains &amp; Standar Internasional
+              </span>
+              <p className="text-xs font-serif font-bold text-slate-900 leading-relaxed">
+                The Nobel Foundation (NobelPrize.org) &amp; International Union of Pure and Applied Chemistry (IUPAC Gold Book, 2019).
+              </p>
+              <p className="text-[11px] text-slate-500 mt-2 font-medium leading-relaxed">
+                Koleksi pidato Nobel asli J.J. Thomson (1906), Ernest Rutherford (1908), Niels Bohr (1922), dan Schrödinger &amp; Heisenberg.
+              </p>
+            </div>
+            <a
+              href="https://www.nobelprize.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:underline pt-2 border-t border-slate-200"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Arsip Resmi Nobel Foundation</span>
+            </a>
+          </div>
+
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <BookMarked className="w-4 h-4 text-indigo-700 shrink-0" />
+            <span className="text-indigo-950 font-medium">
+              Ingin meninjau daftar pustaka per model atom secara spesifik?
+            </span>
+          </div>
+          <button
+            onClick={onNavigateToTimeline}
+            className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition cursor-pointer shrink-0"
+          >
+            Buka Per Model Atom →
+          </button>
         </div>
       </section>
 
