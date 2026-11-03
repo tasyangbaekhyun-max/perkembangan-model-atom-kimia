@@ -1,5 +1,7 @@
 import type { QuizQuestion } from '../types/quiz'
 
+export const QUESTION_SET_VERSION = 'v1.0.0-fase-e'
+
 export const QUIZ_QUESTIONS: QuizQuestion[] = [
   // SOAL 1: Pilihan Ganda (Democritus)
   {

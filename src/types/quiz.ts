@@ -83,4 +83,57 @@ export interface QuestionStatus {
   answered: boolean
   isCorrect: boolean
   attempts: number
+  checked?: boolean
+  frozen?: boolean
+}
+
+// ==========================================
+// SPESIFIKASI LAMPIRAN B: STRUKTUR DATA LOCALSTORAGE
+// ==========================================
+
+export interface ItemResponseRecord {
+  questionId: number
+  questionType: QuestionType
+  firstAnswer: any
+  finalAnswer: any
+  attemptsCount: number
+  isCorrect: boolean
+  firstAttemptCorrect: boolean
+  submittedAt: string
+}
+
+export interface QuizAttemptSession {
+  attemptId: string
+  guestSessionId: string
+  questionVersion: string
+  createdAt: string
+  updatedAt: string
+  isCompleted: boolean
+  completedAt?: string
+  currentQuestionIndex: number
+  draftAnswers: Record<number, any>
+  frozenQuestions: Record<number, boolean>
+  itemResponses: Record<number, ItemResponseRecord>
+  firstAttemptScore: number
+  masteryScore: number
+}
+
+export interface FinalScoreHistory {
+  attemptId: string
+  guestSessionId: string
+  questionVersion: string
+  completedAt: string
+  totalQuestions: number
+  firstAttemptCorrectCount: number
+  firstAttemptScore: number
+  masteryScore: number
+  totalAttemptsMade: number
+}
+
+export interface StorageOperationResult<T = void> {
+  success: boolean
+  data?: T
+  error?: string
+  quotaExceeded?: boolean
+  isFallbackMemory?: boolean
 }
