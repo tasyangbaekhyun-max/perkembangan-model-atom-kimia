@@ -13,7 +13,8 @@ import {
   BookMarked,
   ExternalLink,
   Library,
-  CheckCircle2
+  CheckCircle2,
+  User
 } from 'lucide-react'
 
 interface HomeViewProps {
@@ -61,7 +62,7 @@ export function HomeView({
               className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm transition flex items-center gap-2.5 shadow-lg shadow-amber-500/30 active:scale-98 cursor-pointer"
             >
               <Clock className="w-4 h-4 text-slate-950" />
-              <span>Tahapan Kronologis Perkembangan Model Atom</span>
+              <span>Mulai Alur Belajar Model Atom (Runtut dari Awal)</span>
               <ArrowRight className="w-4 h-4 text-slate-950" />
             </button>
 
@@ -72,6 +73,85 @@ export function HomeView({
               <Layers className="w-4 h-4 text-cyan-200" />
               Tabel Perbandingan
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Alur Pembelajaran Runtut (Pedagogical Flow Explanation) */}
+      <section className="bg-white border-2 border-indigo-100 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col gap-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Alur Pembelajaran Terbimbing Siswa
+            </div>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">
+              Belajar Runtut &amp; Fokus: Bebas dari Tampilan Bertumpuk
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Setiap model atom disajikan berurutan melalui 4 tahapan investigasi terpadu agar siswa dapat menyerap konsep secara mendalam:
+            </p>
+          </div>
+
+          <button
+            onClick={onNavigateToTimeline}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer self-start sm:self-auto shrink-0"
+          >
+            <span>Mulai dari Tahap 1</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900">
+                Tahap 1
+              </span>
+              <User className="w-4 h-4 text-amber-600" />
+            </div>
+            <h4 className="text-xs font-black text-slate-900 uppercase">Konteks &amp; Tokoh</h4>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              Memahami biografi tokoh, masalah sejarah, dan teka-teki ilmiah yang memicu perlunya penyelidikan.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-600 text-white">
+                Tahap 2
+              </span>
+              <FlaskConical className="w-4 h-4 text-indigo-600" />
+            </div>
+            <h4 className="text-xs font-black text-slate-900 uppercase">Laboratorium Virtual</h4>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              Eksperimen pembuktian sains berlayar penuh tanpa teks berdesakan, lengkap dengan panduan observasi mandiri.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-purple-100 text-purple-900">
+                Tahap 3
+              </span>
+              <Atom className="w-4 h-4 text-purple-600" />
+            </div>
+            <h4 className="text-xs font-black text-slate-900 uppercase">Konsep &amp; 3 Tingkat Kimia</h4>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              Memahami model atom temuan melalui 3 Representasi Johnstone (Makroskopik, Submikroskopik, Simbolik) &amp; postulat kimia.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900">
+                Tahap 4
+              </span>
+              <HelpCircle className="w-4 h-4 text-emerald-600" />
+            </div>
+            <h4 className="text-xs font-black text-slate-900 uppercase">Keterbatasan &amp; Refleksi</h4>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              Menemukan kelemahan model, uji cek pemahaman instan, dan menyeberang ke model atom ilmuwan berikutnya.
+            </p>
           </div>
         </div>
       </section>
