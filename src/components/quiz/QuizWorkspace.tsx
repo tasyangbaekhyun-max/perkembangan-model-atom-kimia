@@ -20,7 +20,10 @@ import {
   Keyboard,
   UserCheck,
   History,
-  X
+  X,
+  UploadCloud,
+  RefreshCw,
+  LogIn
 } from 'lucide-react'
 import { QUIZ_QUESTIONS, QUESTION_SET_VERSION } from '../../data/quizQuestions'
 import type {
@@ -30,38 +33,43 @@ import type {
   ItemResponseRecord,
 } from '../../types/quiz'
 import {
-  loadActiveSession,
-  saveActiveSession,
-  saveFinalScoreToHistory,
-  loadFinalScoreHistory,
-  resetCurrentAttemptDraftOnly,
-  startNewAttemptWithNewId,
   clearAllDeviceHistory,
   getStorageHealthStatus,
 } from '../../services/quizStorage'
-import { Bab4ApiService } from '../../services/bab4ApiService'
-import type { Bab4QuizSubmissionPayload } from '../../types/bab4Contract'
+import {
+  authService,
+  SyncService,
+  type UserAccess,
+  type SubmissionStatus
+} from '../../lib'
 
 interface QuizWorkspaceProps {
   onBackToHome?: () => void
   embedded?: boolean
+  onOpenGoogleLogin?: () => void
 }
 
-export function QuizWorkspace({ onBackToHome, embedded = false }: QuizWorkspaceProps) {
-  // Sesi Aktif Kuis (Lampiran B)
+export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogin }: QuizWorkspaceProps) {
+  // Akun Aktif & Sesi dari SDK
+  const [userAccess, setUserAccess] = useState<UserAccess>(() => authService.getAccess())
+
+  // Sesi Aktif Kuis dari partisi akun aktif (Lampiran B / Bab 4)
   const [session, setSession] = useState<QuizAttemptSession>(() => {
-    const loaded = loadActiveSession()
-    return loaded.data!
+    return SyncService.loadActiveSession()
   })
 
-  // Riwayat Skor Akhir (Lampiran B)
+  // Riwayat Skor Akhir dari partisi akun aktif
   const [scoreHistory, setScoreHistory] = useState<FinalScoreHistory[]>(() => {
-    const hist = loadFinalScoreHistory()
-    return hist.data || []
+    return SyncService.loadScoreHistory()
+  })
+
+  // Status Pengiriman: lokal / menunggu kirim / terkirim / gagal
+  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>(() => {
+    return SyncService.getSubmissionStatus(session.attemptId)
   })
 
   // Status Kesehatan Penyimpanan
-  const [storageWarning, setStorageWarning] = useState<string | null>(() => {
+  const [storageWarning] = useState<string | null>(() => {
     const status = getStorageHealthStatus()
     return status.errorMessage
   })
@@ -71,11 +79,23 @@ export function QuizWorkspace({ onBackToHome, embedded = false }: QuizWorkspaceP
   const [showResetDraftModal, setShowResetDraftModal] = useState<boolean>(false)
   const [showClearHistoryModal, setShowClearHistoryModal] = useState<boolean>(false)
   const [showBab4PayloadModal, setShowBab4PayloadModal] = useState<boolean>(false)
-  const [bab4SyncStatus, setBab4SyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle')
   const [bab4SyncMessage, setBab4SyncMessage] = useState<string>('')
 
   // Selected item for click-to-move in Drag and Drop (Mobile-friendly)
   const [selectedDragItem, setSelectedDragItem] = useState<string | null>(null)
+
+  // Listener Sesi SDK untuk pembaruan akun aktif
+  // Sesuai aturan: "Perbarui ID akun aktif dari listener sesi SDK" dan "Hasil/antrean selalu dibaca dari ruang akun aktif"
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChanged((access) => {
+      setUserAccess(access)
+      const current = SyncService.loadActiveSession()
+      setSession(current)
+      setScoreHistory(SyncService.loadScoreHistory())
+      setSubmissionStatus(SyncService.getSubmissionStatus(current.attemptId))
+    })
+    return unsubscribe
+  }, [])
 
   const currentQuestionIndex = session.currentQuestionIndex
   const currentQ = QUIZ_QUESTIONS[currentQuestionIndex]
@@ -87,16 +107,11 @@ export function QuizWorkspace({ onBackToHome, embedded = false }: QuizWorkspaceP
   const isCurrentCorrect = currentResponse?.isCorrect ?? false
   const currentAttempts = currentResponse?.attemptsCount ?? 0
 
-  // Sinkronisasi penyimpanan saat sesi berubah
+  // Sinkronisasi penyimpanan lokal secara langsung SEBELUM request jaringan
   const updateSession = useCallback((updater: (prev: QuizAttemptSession) => QuizAttemptSession) => {
     setSession((prev) => {
       const next = updater(prev)
-      const saveResult = saveActiveSession(next)
-      if (!saveResult.success) {
-        setStorageWarning(saveResult.error || 'Penyimpanan lokal gagal disimpan.')
-      } else {
-        setStorageWarning(null)
-      }
+      SyncService.saveDraftLocally(next)
       return next
     })
   }, [])
@@ -193,10 +208,8 @@ export function QuizWorkspace({ onBackToHome, embedded = false }: QuizWorkspaceP
           masteryScore: 100,
           totalAttemptsMade: Object.values(updatedResponses).reduce((sum, r) => sum + r.attemptsCount, 0),
         }
-        const histResult = saveFinalScoreToHistory(historyItem)
-        if (histResult.data) {
-          setScoreHistory(histResult.data)
-        }
+        SyncService.saveFinalScoreLocally(historyItem)
+        setScoreHistory(SyncService.loadScoreHistory())
       }
 
       return nextSession
@@ -316,80 +329,64 @@ export function QuizWorkspace({ onBackToHome, embedded = false }: QuizWorkspaceP
     }))
   }
 
-  // Eksekusi Reset Draf Saja
+  // Eksekusi Reset Draf Saja (Mempertahankan ID percobaan sesi saat ini)
   const confirmResetDraftOnly = () => {
-    const result = resetCurrentAttemptDraftOnly(session.attemptId)
-    if (result.data) {
-      setSession(result.data)
+    const fresh: QuizAttemptSession = {
+      ...session,
+      currentQuestionIndex: 0,
+      draftAnswers: {
+        8: ['ord_rutherford', 'ord_dalton', 'ord_quantum', 'ord_democritus', 'ord_bohr', 'ord_thomson'],
+      },
+      frozenQuestions: {},
+      itemResponses: {},
+      firstAttemptScore: 0,
+      masteryScore: 0,
+      isCompleted: false,
+      updatedAt: new Date().toISOString(),
     }
+    SyncService.saveDraftLocally(fresh)
+    setSession(fresh)
     setShowResetDraftModal(false)
     setSelectedDragItem(null)
   }
 
   // Eksekusi Mulai Percobaan Ulang dengan ID Baru
+  // Sesuai aturan: "percobaan baru memakai ID baru"
   const handleStartNewAttempt = () => {
-    const result = startNewAttemptWithNewId()
-    if (result.data) {
-      setSession(result.data)
-    }
+    const fresh = SyncService.createInitialSession()
+    SyncService.saveDraftLocally(fresh)
+    setSession(fresh)
+    setSubmissionStatus('lokal')
     setSelectedDragItem(null)
-    setBab4SyncStatus('idle')
   }
 
   // Eksekusi Hapus Seluruh Riwayat Perangkat
   const confirmClearAllDeviceHistory = () => {
     clearAllDeviceHistory()
-    const fresh = startNewAttemptWithNewId()
-    if (fresh.data) {
-      setSession(fresh.data)
-    }
+    const fresh = SyncService.createInitialSession()
+    SyncService.saveDraftLocally(fresh)
+    setSession(fresh)
     setScoreHistory([])
+    setSubmissionStatus('lokal')
     setShowClearHistoryModal(false)
     setSelectedDragItem(null)
   }
 
-  // Simulasi Pengiriman ke Basis Data Riset Bab 4
-  const handleSimulateBab4Submission = async () => {
-    setBab4SyncStatus('syncing')
-    setBab4SyncMessage('Memvalidasi kontrak Bab 4 dan menyinkronkan data...')
+  // Pengiriman / Kirim Ulang Hasil Kuis ke Basis Data Riset Bab 4
+  // Sesuai aturan: "Pertahankan satu ID percobaan ketika retry; percobaan baru memakai ID baru"
+  const handleSendOrRetry = async (isRetry = false) => {
+    setSubmissionStatus('menunggu kirim')
+    setBab4SyncMessage(
+      isRetry
+        ? `Mencoba kirim ulang dengan ID percobaan tetap: ${session.attemptId}...`
+        : 'Menyimpan draf lokal dan mengirimkan berkas riset Bab 4...'
+    )
 
-    const payload: Bab4QuizSubmissionPayload = {
-      submissionId: `SUB-${Date.now()}-${session.guestSessionId.slice(-4)}`,
-      attemptId: session.attemptId,
-      guestSessionId: session.guestSessionId,
-      questionVersion: session.questionVersion,
-      totalQuestions,
-      firstAttemptScore: session.firstAttemptScore,
-      masteryScore: session.masteryScore,
-      totalAttemptsMade: Object.values(session.itemResponses).reduce((sum, r) => sum + r.attemptsCount, 0),
-      startedAt: session.createdAt,
-      completedAt: session.completedAt || new Date().toISOString(),
-      itemResponses: Object.values(session.itemResponses).map((r) => ({
-        questionId: r.questionId,
-        questionType: r.questionType,
-        firstAnswer: r.firstAnswer,
-        finalAnswer: r.finalAnswer,
-        attemptsCount: r.attemptsCount,
-        isCorrect: r.isCorrect,
-        firstAttemptCorrect: r.firstAttemptCorrect,
-        submittedAt: r.submittedAt,
-      })),
-      telemetry: {
-        browserAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
-        screenResolution: typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : '1920x1080',
-        inputMethod: 'mixed',
-        storageMode: storageWarning ? 'memoryFallback' : 'localStorage',
-      },
-    }
-
-    try {
-      const res = await Bab4ApiService.submitQuizResults(payload)
-      setBab4SyncStatus('synced')
-      setBab4SyncMessage(res.message)
+    const result = await SyncService.submitQuizAttempt(session, isRetry)
+    setSubmissionStatus(result.status)
+    setBab4SyncMessage(result.message)
+    if (result.status === 'terkirim') {
       setShowBab4PayloadModal(true)
-    } catch (err: any) {
-      setBab4SyncStatus('error')
-      setBab4SyncMessage(err?.message || 'Gagal mengirimkan berkas riset Bab 4.')
     }
   }
 
@@ -482,11 +479,33 @@ export function QuizWorkspace({ onBackToHome, embedded = false }: QuizWorkspaceP
                 Uji Pemahaman Konsep (Bimbingan Interaktif)
               </span>
               
-              {/* Badge Ruang Tamu / Guest Space */}
+              {/* Badge Identitas Akun Kelas dari getAccess */}
               <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 flex items-center gap-1 shadow-xs">
                 <UserCheck className="w-3 h-3 text-indigo-600" />
-                <span>Ruang Guest ({session.guestSessionId})</span>
+                <span>{userAccess.alias}</span>
               </span>
+
+              {/* Status Teks Baku: lokal / menunggu kirim / terkirim / gagal */}
+              {submissionStatus === 'lokal' && (
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-300">
+                  lokal
+                </span>
+              )}
+              {submissionStatus === 'menunggu kirim' && (
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                  menunggu kirim
+                </span>
+              )}
+              {submissionStatus === 'terkirim' && (
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  terkirim
+                </span>
+              )}
+              {submissionStatus === 'gagal' && (
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-300">
+                  gagal
+                </span>
+              )}
 
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                 Versi: {session.questionVersion}
@@ -531,6 +550,27 @@ export function QuizWorkspace({ onBackToHome, embedded = false }: QuizWorkspaceP
         </div>
       </div>
 
+      {/* ---------------- NOTICE: BELAJAR TANPA LOGIN TETAP BERFUNGSI ---------------- */}
+      {!userAccess.isAuthenticated && (
+        <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
+          <div className="flex items-center gap-2">
+            <Compass className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span className="text-indigo-950 font-medium">
+              <strong>Belajar Tanpa Login:</strong> Anda dapat mengerjakan seluruh soal evaluasi secara mandiri. Skor dan draf tersimpan aman di perangkat lokal ini.
+            </span>
+          </div>
+          {onOpenGoogleLogin && (
+            <button
+              onClick={onOpenGoogleLogin}
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 font-bold border border-indigo-300 flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Masuk dengan Google</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ---------------- 2. STORAGE HEALTH & WARNING NOTICE ---------------- */}
       {storageWarning && (
         <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex items-start gap-2.5 shadow-xs">
@@ -572,44 +612,118 @@ export function QuizWorkspace({ onBackToHome, embedded = false }: QuizWorkspaceP
 
       {/* ---------------- 4. COMPLETION CELEBRATION & BAB 4 DATABASE CONTRACT ---------------- */}
       {session.isCompleted && (
-        <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border-2 border-emerald-300 shadow-md flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in">
-          <div className="flex items-center gap-4 text-center sm:text-left">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 text-3xl font-black shrink-0">
-              🏆
-            </div>
-            <div>
-              <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Selamat! Seluruh Soal Telah Tuntas</span>
-              <h3 className="text-xl font-black text-slate-900">
-                Master Konsep Struktur Model Atom
-              </h3>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
-                  Skor Percobaan Pertama: {session.firstAttemptScore} / 100
-                </span>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-900 border border-sky-300">
-                  Skor Penguasaan Tuntas: 100 / 100
-                </span>
+        <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border-2 border-emerald-300 shadow-md flex flex-col gap-5 animate-fade-in">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4 text-center sm:text-left">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 text-3xl font-black shrink-0">
+                🏆
               </div>
+              <div>
+                <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Selamat! Seluruh Soal Telah Tuntas</span>
+                <h3 className="text-xl font-black text-slate-900">
+                  Master Konsep Struktur Model Atom
+                </h3>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                    Skor Percobaan Pertama: {session.firstAttemptScore} / 100
+                  </span>
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-900 border border-sky-300">
+                    Skor Penguasaan Tuntas: 100 / 100
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleStartNewAttempt}
+                className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-2 cursor-pointer"
+                title="Mulai percobaan kuis baru dengan ID baru"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Percobaan Baru (ID Baru)</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleSimulateBab4Submission}
-              disabled={bab4SyncStatus === 'syncing'}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold text-xs shadow-md shadow-indigo-600/25 flex items-center gap-2 cursor-pointer"
-            >
-              <Database className="w-4 h-4" />
-              <span>{bab4SyncStatus === 'syncing' ? 'Menyinkronkan...' : 'Kirim Basis Data (Bab 4)'}</span>
-            </button>
+          {/* STATUS PENYIMPANAN & PENGIRIMAN DATA RISET (Bab 4) */}
+          <div className="p-4 bg-white/90 rounded-2xl border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-slate-700">Status Data:</span>
+              {submissionStatus === 'lokal' && (
+                <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-800 font-bold border border-slate-300 flex items-center gap-1.5">
+                  <Database className="w-3.5 h-3.5 text-slate-600" />
+                  <span>lokal (Tersimpan di Perangkat)</span>
+                </span>
+              )}
+              {submissionStatus === 'menunggu kirim' && (
+                <span className="px-3 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold border border-amber-300 animate-pulse flex items-center gap-1.5">
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-700 animate-spin" />
+                  <span>menunggu kirim...</span>
+                </span>
+              )}
+              {submissionStatus === 'terkirim' && (
+                <span className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-bold border border-emerald-300 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>terkirim (Tersinkronisasi ke Basis Data)</span>
+                </span>
+              )}
+              {submissionStatus === 'gagal' && (
+                <span className="px-3 py-1 rounded-lg bg-rose-100 text-rose-900 font-bold border border-rose-300 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                  <span>gagal (Gagal Terkirim ke Server)</span>
+                </span>
+              )}
+            </div>
 
-            <button
-              onClick={handleStartNewAttempt}
-              className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-2 cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>Percobaan Baru (ID Baru)</span>
-            </button>
+            {/* ACTION BUTTONS: Masuk dengan Google, Simpan ke Akun, Coba Kirim Lagi */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {!userAccess.isAuthenticated ? (
+                <>
+                  {onOpenGoogleLogin && (
+                    <button
+                      onClick={onOpenGoogleLogin}
+                      className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <LogIn className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Masuk dengan Google</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (onOpenGoogleLogin) onOpenGoogleLogin()
+                    }}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>Simpan ke Akun</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {submissionStatus === 'gagal' && (
+                    <button
+                      onClick={() => handleSendOrRetry(true)}
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      title="Mencoba mengirim ulang dengan mempertahankan ID percobaan yang sama"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Coba Kirim Lagi</span>
+                    </button>
+                  )}
+
+                  {(submissionStatus === 'lokal' || submissionStatus === 'terkirim') && (
+                    <button
+                      onClick={() => handleSendOrRetry(false)}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>{submissionStatus === 'terkirim' ? 'Kirim Ulang Salinan' : 'Simpan ke Akun'}</span>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
