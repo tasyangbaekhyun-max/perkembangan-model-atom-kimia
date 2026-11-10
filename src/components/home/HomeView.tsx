@@ -22,6 +22,8 @@ interface HomeViewProps {
   onNavigateToComparison: () => void
   onNavigateToSimulation: (modelId?: string) => void
   onNavigateToQuiz: () => void
+  onOpenAuth?: () => void
+  isAuthenticated?: boolean
 }
 
 export function HomeView({
@@ -29,9 +31,36 @@ export function HomeView({
   onNavigateToComparison,
   onNavigateToSimulation,
   onNavigateToQuiz,
+  onOpenAuth,
+  isAuthenticated = false,
 }: HomeViewProps) {
   return (
     <div className="flex flex-col gap-10 w-full animate-fade-in">
+      
+      {/* Informational Guest Mode Notification */}
+      {!isAuthenticated && onOpenAuth && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50/80 border border-blue-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Atom className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">
+                Anda sedang belajar dalam <span className="text-blue-700 font-extrabold">Mode Tamu (Belajar Bebas)</span>
+              </p>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Masuk atau daftar dengan Google / Email untuk mencatat skor dan evaluasi kuis ke dasbor kelas kimia Anda.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenAuth}
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition shrink-0 cursor-pointer active:scale-98"
+          >
+            Masuk / Buat Akun Baru
+          </button>
+        </div>
+      )}
       
       {/* Hero Welcome Banner */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 text-white p-7 md:p-12 shadow-xl shadow-indigo-500/15">

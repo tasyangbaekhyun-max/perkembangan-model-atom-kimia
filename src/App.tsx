@@ -10,13 +10,15 @@ import {
   UserCheck,
   LogOut,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  LogIn
 } from 'lucide-react'
 import { ATOM_MODELS } from './data/atomModels'
 import { HomeView } from './components/home/HomeView'
 import { ComparisonView } from './components/comparison/ComparisonView'
 import { QuizWorkspace } from './components/quiz/QuizWorkspace'
 import { TimelineWorkspace } from './components/timeline/TimelineWorkspace'
+import { AuthView } from './components/auth/AuthView'
 import {
   authService,
   SyncService,
@@ -25,7 +27,12 @@ import {
 } from './lib'
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'home' | 'timeline' | 'comparison' | 'quiz'>('home')
+  // Sesuai permintaan: Fitur login dan register di halaman awal
+  // Jika pengguna belum login, langsung tampilkan halaman autentikasi awal (auth)
+  const [currentView, setCurrentView] = useState<'auth' | 'home' | 'timeline' | 'comparison' | 'quiz'>(() => {
+    const access = authService.getAccess()
+    return access.isAuthenticated ? 'home' : 'auth'
+  })
   const [timelineModelId, setTimelineModelId] = useState<string>('democritus')
 
   // Status Autentikasi dari SDK
@@ -64,21 +71,35 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Masuk dengan Google
-  const handleLoginWithGoogle = async () => {
-    await authService.loginWithGoogle({
-      customName: studentNameInput.trim() || 'Siswa Kimia',
-      classCode: classCodeInput.trim() || 'KIM-X-FASE-E',
-      schoolName: 'SMA Negeri 1 Jakarta',
-    })
-    setShowGoogleLoginModal(false)
+  // Sukses login dari halaman awal
+  const handleAuthSuccess = (access: UserAccess) => {
+    setUserAccess(access)
+    setCurrentView('home')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
 
-    // Tawarkan pemilihan hasil tamu; jangan otomatis menganggap hasil perangkat milik orang yang baru login!
+    // Periksa apakah terdapat hasil sesi tamu sebelumnya di perangkat ini
     const unclaimed = SyncService.getUnclaimedGuestResults()
     if (unclaimed) {
       setGuestSummary(unclaimed)
       setShowGuestMigrationModal(true)
     }
+  }
+
+  // Lanjutkan sebagai tamu dari halaman awal
+  const handleContinueAsGuest = () => {
+    setCurrentView('home')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Masuk dengan Google dari Modal
+  const handleLoginWithGoogle = async () => {
+    const access = await authService.loginWithGoogle({
+      customName: studentNameInput.trim() || 'Siswa Kimia',
+      classCode: classCodeInput.trim() || 'KIM-X-FASE-E',
+      schoolName: 'SMA Negeri 1 Jakarta',
+    })
+    setShowGoogleLoginModal(false)
+    handleAuthSuccess(access)
   }
 
   // Resolusi Hasil Tamu: Tautkan ke Akun Saya
@@ -104,11 +125,23 @@ export default function App() {
     setShowLogoutModal(true)
   }
 
-  // Eksekusi Logout
+  // Eksekusi Logout (kembali ke halaman awal auth)
   const handleConfirmLogout = (wipeDevice: boolean) => {
     authService.logout(wipeDevice)
     setShowLogoutModal(false)
     setConfirmWipeData(false)
+    setCurrentView('auth')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // JIKA TAMPILAN AKTIF ADALAH HALAMAN AWAL (AUTH: LOGIN, REGISTER & LUPA PASSWORD)
+  if (currentView === 'auth') {
+    return (
+      <AuthView
+        onSuccessLogin={handleAuthSuccess}
+        onContinueAsGuest={handleContinueAsGuest}
+      />
+    )
   }
 
   return (
@@ -204,10 +237,22 @@ export default function App() {
                   Mode Tamu (Belajar Bebas)
                 </span>
 
+                {/* Tombol Masuk / Daftar (Navigasi ke Halaman Awal Login & Register) */}
+                <button
+                  onClick={() => {
+                    setCurrentView('auth')
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-98"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Masuk / Daftar</span>
+                </button>
+
                 {/* Tombol Masuk dengan Google */}
                 <button
                   onClick={() => setShowGoogleLoginModal(true)}
-                  className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-2 cursor-pointer transition hover:border-indigo-400"
+                  className="hidden sm:flex px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs items-center gap-2 cursor-pointer transition hover:border-indigo-400"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path
@@ -227,7 +272,7 @@ export default function App() {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span>Masuk dengan Google</span>
+                  <span>Google</span>
                 </button>
               </>
             ) : (
@@ -269,6 +314,11 @@ export default function App() {
               setCurrentView('quiz')
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }}
+            onOpenAuth={() => {
+              setCurrentView('auth')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+            isAuthenticated={userAccess.isAuthenticated}
           />
         )}
 
@@ -290,7 +340,10 @@ export default function App() {
               setCurrentView('home')
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }}
-            onOpenGoogleLogin={() => setShowGoogleLoginModal(true)}
+            onOpenGoogleLogin={() => {
+              setCurrentView('auth')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
           />
         )}
 
@@ -368,7 +421,7 @@ export default function App() {
 
             <div className="flex flex-col gap-3 text-xs">
               <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-2xl text-indigo-950 font-medium leading-relaxed">
-                💡 <strong>Belajar tanpa login tetap berfungsi penuh!</strong> Masuk dengan akun Google opsional bagi Anda yang ingin mencatat skor resmi ke dasbor guru.
+                💡 <strong>Belajar tanpa login tetap berfungsi penuh!</strong> Masuk dengan akun Google memudahkan pencatatan skor resmi ke guru.
               </div>
 
               <div className="space-y-1">
@@ -406,7 +459,7 @@ export default function App() {
                 onClick={() => setShowGoogleLoginModal(false)}
                 className="w-full py-2.5 rounded-xl text-slate-500 hover:text-slate-800 font-bold text-xs cursor-pointer"
               >
-                Lanjutkan Sebagai Tamu
+                Batal
               </button>
             </div>
           </div>
@@ -414,7 +467,6 @@ export default function App() {
       )}
 
       {/* ── MODAL 2: RESOLUSI HASIL TAMU (Shared Device Choice) ──────────────── */}
-      {/* Sesuai aturan: "Tawarkan pemilihan hasil tamu; jangan otomatis menganggap hasil perangkat milik orang yang baru login." */}
       {showGuestMigrationModal && guestSummary && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border-2 border-amber-300 flex flex-col gap-4">
@@ -461,7 +513,6 @@ export default function App() {
       )}
 
       {/* ── MODAL 3: LOGOUT DENGAN PERINGATAN DATA & PERANGKAT BERSAMA ────────── */}
-      {/* Sesuai aturan: "Logout menjelaskan hasil belum terkirim dan pilihan perangkat bersama; konfirmasi sebelum penghapusan." */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 flex flex-col gap-4">
