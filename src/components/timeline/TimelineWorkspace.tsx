@@ -23,7 +23,8 @@ import {
   Compass,
   Layers,
   LayoutList,
-  Check
+  Check,
+  Lock
 } from 'lucide-react'
 import type { AtomModel, ReferenceItem } from '../../types/atom'
 import { ATOM_MODELS } from '../../data/atomModels'
@@ -37,6 +38,8 @@ interface TimelineWorkspaceProps {
 }
 
 export type LearningStep = 'context' | 'lab' | 'concept' | 'evaluation'
+
+const STEP_ORDER: LearningStep[] = ['context', 'lab', 'concept', 'evaluation']
 
 export function TimelineWorkspace({
   initialModelId,
@@ -57,6 +60,14 @@ export function TimelineWorkspace({
 
   // In guided mode: active step (1 to 4)
   const [currentStep, setCurrentStep] = useState<LearningStep>('context')
+
+  // Track highest step reached per model (to enforce sequential progress)
+  const [highestStepPerModel, setHighestStepPerModel] = useState<Record<string, number>>({
+    [ATOM_MODELS[0].id]: 0 // start at step index 0 (context)
+  })
+
+  // Track which model indices are unlocked (index-based, Democritus = 0 is always unlocked)
+  const [unlockedModelIndex, setUnlockedModelIndex] = useState<number>(0)
 
   // In split mode: active tab on theory side
   const [splitTab, setSplitTab] = useState<'scientist' | 'overview' | 'rules' | 'representations' | 'references'>('scientist')
@@ -88,8 +99,37 @@ export function TimelineWorkspace({
   const prevModel = !isFirstModel ? ATOM_MODELS[currentModelIndex - 1] : null
   const nextModel = !isLastModel ? ATOM_MODELS[currentModelIndex + 1] : null
 
+  // Helper: get highest step index reached for a given model
+  const getHighestStepIndex = (modelId: string): number => {
+    return highestStepPerModel[modelId] ?? -1
+  }
+
+  // Helper: get index of a step in STEP_ORDER
+  const getStepIndex = (step: LearningStep): number => STEP_ORDER.indexOf(step)
+
+  // Check if a step is accessible (sequential lock)
+  const isStepAccessible = (step: LearningStep): boolean => {
+    const stepIdx = getStepIndex(step)
+    const highestReached = getHighestStepIndex(selectedModel.id)
+    // step 0 always accessible, others accessible only if previous was reached
+    return stepIdx === 0 || stepIdx <= highestReached + 1
+  }
+
+  // Check if a step was already completed (reached)
+  const isStepCompleted = (step: LearningStep): boolean => {
+    const stepIdx = getStepIndex(step)
+    return stepIdx <= getHighestStepIndex(selectedModel.id)
+  }
+
   const handleStepChange = (step: LearningStep) => {
+    if (!isStepAccessible(step)) return // block locked steps
     setCurrentStep(step)
+    // Update highest step reached
+    const stepIdx = getStepIndex(step)
+    setHighestStepPerModel(prev => ({
+      ...prev,
+      [selectedModel.id]: Math.max(prev[selectedModel.id] ?? -1, stepIdx)
+    }))
     const element = document.getElementById('step-content-anchor')
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -110,6 +150,9 @@ export function TimelineWorkspace({
 
   const handleGoToNextModel = () => {
     if (nextModel) {
+      // Unlock the next model
+      const nextModelIdx = currentModelIndex + 1
+      setUnlockedModelIndex(prev => Math.max(prev, nextModelIdx))
       handleSelectModel(nextModel)
     }
   }
@@ -118,6 +161,16 @@ export function TimelineWorkspace({
     if (prevModel) {
       handleSelectModel(prevModel)
     }
+  }
+
+  // Check if a model (by index) is unlocked/accessible
+  const isModelUnlocked = (idx: number): boolean => {
+    return idx <= unlockedModelIndex
+  }
+
+  // Check if the current model's evaluation step is completed (all 4 steps done)
+  const isCurrentModelCompleted = (): boolean => {
+    return isStepCompleted('evaluation')
   }
 
   const stepsList = [
@@ -225,15 +278,20 @@ export function TimelineWorkspace({
           {ATOM_MODELS.map((model, idx) => {
             const isSelected = selectedModel.id === model.id
             const isPassed = idx < currentModelIndex
+            const unlocked = isModelUnlocked(idx)
 
             return (
               <button
                 key={model.id}
-                onClick={() => handleSelectModel(model)}
-                className={`relative p-3 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between h-28 shadow-xs cursor-pointer ${
-                  isSelected
-                    ? `${model.theme.bgLight} ${model.theme.activeRing} shadow-md scale-102`
-                    : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                onClick={() => { if (unlocked) handleSelectModel(model) }}
+                disabled={!unlocked}
+                title={!unlocked ? `Selesaikan eksplorasi model sebelumnya terlebih dahulu untuk membuka model ini` : undefined}
+                className={`relative p-3 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between h-28 shadow-xs ${
+                  !unlocked
+                    ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-70'
+                    : isSelected
+                    ? `${model.theme.bgLight} ${model.theme.activeRing} shadow-md scale-102 cursor-pointer`
+                    : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300 cursor-pointer'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -243,10 +301,13 @@ export function TimelineWorkspace({
                         ? model.theme.badgeBg
                         : isPassed
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : !unlocked
+                        ? 'bg-slate-200 text-slate-500'
                         : 'bg-slate-100 text-slate-600'
                     }`}
                   >
                     {isPassed && <Check className="w-2.5 h-2.5" />}
+                    {!unlocked && <Lock className="w-2.5 h-2.5" />}
                     {idx + 1}. {model.period}
                   </span>
                   {isSelected && (
@@ -254,18 +315,28 @@ export function TimelineWorkspace({
                       className={`w-2.5 h-2.5 rounded-full bg-gradient-to-tr ${model.theme.gradient} animate-pulse`}
                     />
                   )}
+                  {!unlocked && !isSelected && (
+                    <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 my-1">
-                  <img
-                    src={model.scientistProfile.avatarUrl}
-                    alt={model.scientist}
-                    className="w-7 h-7 rounded-full object-cover border border-white shadow-xs shrink-0"
-                  />
+                  <div className="relative shrink-0">
+                    <img
+                      src={model.scientistProfile.avatarUrl}
+                      alt={model.scientist}
+                      className={`w-7 h-7 rounded-full object-cover border border-white shadow-xs shrink-0 ${!unlocked ? 'grayscale opacity-60' : ''}`}
+                    />
+                    {!unlocked && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-800/40">
+                        <Lock className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
                   <div className="min-w-0">
                     <h3
                       className={`font-black text-xs truncate ${
-                        isSelected ? model.theme.textColor : 'text-slate-800'
+                        isSelected ? model.theme.textColor : !unlocked ? 'text-slate-400' : 'text-slate-800'
                       }`}
                     >
                       {model.scientist}
@@ -273,14 +344,21 @@ export function TimelineWorkspace({
                   </div>
                 </div>
 
-                <p className="text-[10px] text-slate-500 truncate font-medium">{model.name}</p>
+                <p className={`text-[10px] truncate font-medium ${!unlocked ? 'text-slate-400' : 'text-slate-500'}`}>{model.name}</p>
+
+                {/* Lock overlay label */}
+                {!unlocked && (
+                  <div className="absolute bottom-2 right-2">
+                    <span className="text-[9px] font-bold text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-md">Terkunci</span>
+                  </div>
+                )}
               </button>
             )
           })}
         </div>
 
         {/* Benang Merah Evolusi (Connecting Thread) */}
-        <div className="p-3 rounded-2xl bg-gradient-to-r from-indigo-50/80 via-white to-sky-50/80 border border-indigo-100 flex items-center gap-3 text-xs shadow-2xs">
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-indigo-50/80 via-white to-sky-50/80 border border-indigo-100 flex flex-wrap items-center gap-3 text-xs shadow-2xs">
           <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black shrink-0 text-xs">
             {currentModelIndex + 1}
           </div>
@@ -291,6 +369,12 @@ export function TimelineWorkspace({
             <span className="text-slate-600 ml-1.5 hidden md:inline">
               — {selectedModel.summary}
             </span>
+            {!isLastModel && !isCurrentModelCompleted() && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <Lock className="w-3 h-3 text-amber-600 shrink-0" />
+                <span className="text-amber-700 font-medium text-[10px]">Selesaikan Tahap 4 (Evaluasi) untuk membuka model selanjutnya</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
@@ -303,10 +387,11 @@ export function TimelineWorkspace({
             </button>
             <button
               onClick={handleGoToNextModel}
-              disabled={isLastModel}
-              className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-indigo-700 cursor-pointer shadow-xs"
-              title="Model Berikutnya"
+              disabled={isLastModel || !isCurrentModelCompleted()}
+              className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-indigo-700 cursor-pointer shadow-xs flex items-center gap-1"
+              title={!isCurrentModelCompleted() ? 'Selesaikan Tahap 4 (Evaluasi) terlebih dahulu' : 'Model Berikutnya'}
             >
+              {!isCurrentModelCompleted() && !isLastModel && <Lock className="w-3 h-3" />}
               Next →
             </button>
           </div>
@@ -326,26 +411,42 @@ export function TimelineWorkspace({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {stepsList.map((step) => {
                 const isActive = currentStep === step.id
+                const accessible = isStepAccessible(step.id)
+                const completed = isStepCompleted(step.id)
                 const StepIcon = step.icon
 
                 return (
                   <button
                     key={step.id}
-                    onClick={() => handleStepChange(step.id)}
-                    className={`p-3 rounded-2xl text-left transition-all cursor-pointer border flex items-center gap-3 ${
+                    onClick={() => { if (accessible) handleStepChange(step.id) }}
+                    disabled={!accessible}
+                    title={!accessible ? `Selesaikan tahap sebelumnya terlebih dahulu` : undefined}
+                    className={`p-3 rounded-2xl text-left transition-all border flex items-center gap-3 ${
                       isActive
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20'
-                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20 cursor-pointer'
+                        : accessible
+                        ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 cursor-pointer'
+                        : 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
                     }`}
                   >
                     <div
                       className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
                         isActive
                           ? 'bg-white text-indigo-700 shadow-xs'
-                          : 'bg-white border border-slate-200 text-slate-700'
+                          : completed
+                          ? 'bg-emerald-50 border border-emerald-200 text-emerald-600'
+                          : accessible
+                          ? 'bg-white border border-slate-200 text-slate-700'
+                          : 'bg-slate-100 border border-slate-200 text-slate-400'
                       }`}
                     >
-                      <StepIcon className="w-4 h-4" />
+                      {completed && !isActive ? (
+                        <Check className="w-4 h-4 text-emerald-500" />
+                      ) : !accessible ? (
+                        <Lock className="w-4 h-4" />
+                      ) : (
+                        <StepIcon className="w-4 h-4" />
+                      )}
                     </div>
 
                     <div className="min-w-0">
@@ -354,11 +455,16 @@ export function TimelineWorkspace({
                           className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-md ${
                             isActive
                               ? 'bg-indigo-500 text-white'
+                              : completed
+                              ? 'bg-emerald-100 text-emerald-700'
                               : 'bg-slate-200 text-slate-600'
                           }`}
                         >
                           Tahap {step.number}
                         </span>
+                        {!accessible && (
+                          <span className="text-[9px] font-bold text-slate-400 bg-slate-200 px-1 py-0.5 rounded">Terkunci</span>
+                        )}
                       </div>
                       <h4 className="font-black text-xs md:text-sm truncate mt-0.5">
                         {step.title}
