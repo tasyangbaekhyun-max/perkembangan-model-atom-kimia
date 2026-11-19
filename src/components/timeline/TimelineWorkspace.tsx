@@ -10,13 +10,11 @@ import {
   Calendar,
   Award,
   Lightbulb,
-  Eye,
   CheckCircle2,
   BookMarked,
   ExternalLink,
   ShieldCheck,
   AlertTriangle,
-  FileText,
   FlaskConical,
   HelpCircle,
   RotateCcw,
@@ -72,19 +70,25 @@ export function TimelineWorkspace({
   // In split mode: active tab on theory side
   const [splitTab, setSplitTab] = useState<'scientist' | 'overview' | 'rules' | 'representations' | 'references'>('scientist')
 
-  // Mini checkpoint state for current model
+  // Mini checkpoint state for current model (support 5 interactive questions)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0)
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState<boolean>(false)
   const [showHint, setShowHint] = useState<boolean>(false)
+  const [quizScore, setQuizScore] = useState<number>(0)
+  const [answeredQuestions, setAnsweredQuestions] = useState<Record<number, { chosen: number; isCorrect: boolean }>>({})
 
   // Reference modal for current model
   const [showReferenceModal, setShowReferenceModal] = useState<boolean>(false)
 
   const handleSelectModel = (model: AtomModel) => {
     setSelectedModel(model)
+    setCurrentQuestionIndex(0)
     setSelectedOption(null)
     setIsAnswerSubmitted(false)
     setShowHint(false)
+    setQuizScore(0)
+    setAnsweredQuestions({})
     setCurrentStep('context')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -101,18 +105,18 @@ export function TimelineWorkspace({
 
   // Helper: get highest step index reached for a given model
   const getHighestStepIndex = (modelId: string): number => {
-    return highestStepPerModel[modelId] ?? -1
+    return highestStepPerModel[modelId] ?? 0
   }
 
   // Helper: get index of a step in STEP_ORDER
   const getStepIndex = (step: LearningStep): number => STEP_ORDER.indexOf(step)
 
-  // Check if a step is accessible (sequential lock)
+  // Check if a step is accessible (sequential lock: step 0 always accessible, step N accessible if highest reached >= N)
   const isStepAccessible = (step: LearningStep): boolean => {
     const stepIdx = getStepIndex(step)
+    if (stepIdx <= 0) return true
     const highestReached = getHighestStepIndex(selectedModel.id)
-    // step 0 always accessible, others accessible only if previous was reached
-    return stepIdx === 0 || stepIdx <= highestReached + 1
+    return stepIdx <= highestReached
   }
 
   // Check if a step was already completed (reached)
@@ -124,11 +128,10 @@ export function TimelineWorkspace({
   const handleStepChange = (step: LearningStep) => {
     if (!isStepAccessible(step)) return // block locked steps
     setCurrentStep(step)
-    // Update highest step reached
     const stepIdx = getStepIndex(step)
     setHighestStepPerModel(prev => ({
       ...prev,
-      [selectedModel.id]: Math.max(prev[selectedModel.id] ?? -1, stepIdx)
+      [selectedModel.id]: Math.max(prev[selectedModel.id] ?? 0, stepIdx)
     }))
     const element = document.getElementById('step-content-anchor')
     if (element) {
@@ -137,9 +140,32 @@ export function TimelineWorkspace({
   }
 
   const handleNextStep = () => {
-    if (currentStep === 'context') handleStepChange('lab')
-    else if (currentStep === 'lab') handleStepChange('concept')
-    else if (currentStep === 'concept') handleStepChange('evaluation')
+    let nextStep: LearningStep | null = null
+    let targetStepIdx = 0
+
+    if (currentStep === 'context') {
+      nextStep = 'lab'
+      targetStepIdx = 1
+    } else if (currentStep === 'lab') {
+      nextStep = 'concept'
+      targetStepIdx = 2
+    } else if (currentStep === 'concept') {
+      nextStep = 'evaluation'
+      targetStepIdx = 3
+    }
+
+    if (nextStep) {
+      // Buka kunci dan langsung arahkan ke step berikutnya
+      setHighestStepPerModel(prev => ({
+        ...prev,
+        [selectedModel.id]: Math.max(prev[selectedModel.id] ?? 0, targetStepIdx)
+      }))
+      setCurrentStep(nextStep)
+      const element = document.getElementById('step-content-anchor')
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
   }
 
   const handlePrevStep = () => {
@@ -191,8 +217,8 @@ export function TimelineWorkspace({
     {
       id: 'concept' as LearningStep,
       number: 3,
-      title: 'Konsep & 3 Representasi',
-      subtitle: 'Makro, Submikro & Simbolik',
+      title: 'Konsep & Aturan Kimia',
+      subtitle: 'Postulat & Analogi Model',
       icon: Atom
     },
     {
@@ -677,14 +703,14 @@ export function TimelineWorkspace({
                   onClick={handleNextStep}
                   className="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 cursor-pointer"
                 >
-                  <span>Lanjut ke Tahap 3: Konsep Model &amp; 3 Representasi</span>
+                  <span>Lanjut ke Tahap 3: Konsep Model &amp; Aturan Kimia</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── STEP 3: KONSEP MODEL ATOM & 3 REPRESENTASI KIMIA ──────────────── */}
+          {/* ── STEP 3: KONSEP MODEL ATOM & ATURAN KIMIA ──────────────── */}
           {currentStep === 'concept' && (
             <div className="flex flex-col gap-6 animate-fade-in">
               {/* Core Concept & Analogy */}
@@ -714,72 +740,6 @@ export function TimelineWorkspace({
                   <p className="text-xs sm:text-sm text-sky-950 leading-relaxed font-medium">
                     {selectedModel.analogy}
                   </p>
-                </div>
-              </div>
-
-              {/* Kerangka Tiga Tingkat Representasi Kimia Johnstone */}
-              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
-                      <Layers className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm sm:text-base font-black text-slate-900">
-                        Tiga Tingkat Representasi Kimia (Segitiga Johnstone)
-                      </h4>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        Pendekatan pedagogis untuk mencegah miskonsepsi kimia siswa
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-                    Pedagogi Kimia
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Makroskopik */}
-                  <div className="p-4 rounded-2xl bg-sky-50/80 border border-sky-200 flex flex-col gap-2 shadow-2xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center border border-sky-300">
-                        <Eye className="w-4 h-4" />
-                      </div>
-                      <h5 className="text-xs font-black text-sky-900 uppercase">1. Makroskopik</h5>
-                    </div>
-                    <p className="text-[11px] text-slate-500 font-bold">Gejala Nyata Teramati di Lab</p>
-                    <p className="text-xs text-sky-950 font-medium leading-relaxed">
-                      {selectedModel.representations.macroscopic}
-                    </p>
-                  </div>
-
-                  {/* Submikroskopik */}
-                  <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex flex-col gap-2 shadow-2xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center border border-emerald-300">
-                        <Atom className="w-4 h-4" />
-                      </div>
-                      <h5 className="text-xs font-black text-emerald-900 uppercase">2. Submikroskopik</h5>
-                    </div>
-                    <p className="text-[11px] text-slate-500 font-bold">Struktur Partikel Subatomik</p>
-                    <p className="text-xs text-emerald-950 font-medium leading-relaxed">
-                      {selectedModel.representations.submicroscopic}
-                    </p>
-                  </div>
-
-                  {/* Simbolik */}
-                  <div className="p-4 rounded-2xl bg-purple-50/80 border border-purple-200 flex flex-col gap-2 shadow-2xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center border border-purple-300">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <h5 className="text-xs font-black text-purple-900 uppercase">3. Simbolik</h5>
-                    </div>
-                    <p className="text-[11px] text-slate-500 font-bold">Notasi, Rumus &amp; Formula</p>
-                    <p className="text-xs text-purple-950 font-medium leading-relaxed">
-                      {selectedModel.representations.symbolic}
-                    </p>
-                  </div>
                 </div>
               </div>
 
@@ -866,141 +826,250 @@ export function TimelineWorkspace({
                 </div>
               </div>
 
-              {/* Interactive Mini-Checkpoint Question (Instant Feedback) */}
-              <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold">
-                      <HelpCircle className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                        Cek Pemahaman Konsep Cepat
-                      </span>
-                      <h4 className="text-sm sm:text-base font-black text-slate-900">
-                        Refleksi Model Atom {selectedModel.scientist}
-                      </h4>
-                    </div>
-                  </div>
+              {/* Interactive Mini-Checkpoint Question (Instant Feedback - 5 Soal Refleksi) */}
+              {(() => {
+                const questionList = guideData.questions || [guideData.miniCheckpoint]
+                const totalQ = questionList.length
+                const activeQ = questionList[currentQuestionIndex] || questionList[0]
+                const currentAnswered = answeredQuestions[currentQuestionIndex]
+                const isCurrentSubmitted = Boolean(currentAnswered) || isAnswerSubmitted
+                const currentChosenOption = currentAnswered ? currentAnswered.chosen : selectedOption
+                const totalAnswered = Object.keys(answeredQuestions).length
 
-                  <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-                    1 Soal Interaktif
-                  </span>
-                </div>
+                const handleAnswerSubmit = () => {
+                  if (selectedOption === null) return
+                  const isCorrect = selectedOption === activeQ.correctAnswer
+                  setIsAnswerSubmitted(true)
+                  setAnsweredQuestions((prev) => ({
+                    ...prev,
+                    [currentQuestionIndex]: { chosen: selectedOption, isCorrect }
+                  }))
+                  if (isCorrect && !answeredQuestions[currentQuestionIndex]) {
+                    setQuizScore((prev) => prev + 1)
+                  }
+                }
 
-                <div className="flex flex-col gap-3">
-                  <p className="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed">
-                    {guideData.miniCheckpoint.question}
-                  </p>
+                const handleSwitchQuestion = (idx: number) => {
+                  setCurrentQuestionIndex(idx)
+                  const prevRecord = answeredQuestions[idx]
+                  if (prevRecord) {
+                    setSelectedOption(prevRecord.chosen)
+                    setIsAnswerSubmitted(true)
+                  } else {
+                    setSelectedOption(null)
+                    setIsAnswerSubmitted(false)
+                  }
+                  setShowHint(false)
+                }
 
-                  <div className="space-y-2 mt-1">
-                    {guideData.miniCheckpoint.options.map((opt, idx) => {
-                      const isChosen = selectedOption === idx
-                      const isCorrect = idx === guideData.miniCheckpoint.correctAnswer
+                const handleResetCurrent = () => {
+                  setSelectedOption(null)
+                  setIsAnswerSubmitted(false)
+                  setShowHint(false)
+                  setAnsweredQuestions((prev) => {
+                    const next = { ...prev }
+                    if (next[currentQuestionIndex]?.isCorrect) {
+                      setQuizScore((s) => Math.max(0, s - 1))
+                    }
+                    delete next[currentQuestionIndex]
+                    return next
+                  })
+                }
 
-                      let btnStyle =
-                        'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
-                      if (isAnswerSubmitted) {
-                        if (isCorrect) {
-                          btnStyle = 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold ring-2 ring-emerald-400'
-                        } else if (isChosen) {
-                          btnStyle = 'bg-rose-50 border-rose-400 text-rose-950 font-bold ring-2 ring-rose-400'
-                        } else {
-                          btnStyle = 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
-                        }
-                      } else if (isChosen) {
-                        btnStyle = 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400'
-                      }
-
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            if (!isAnswerSubmitted) setSelectedOption(idx)
-                          }}
-                          disabled={isAnswerSubmitted}
-                          className={`w-full p-3.5 rounded-2xl border text-left text-xs sm:text-sm transition flex items-start gap-3 cursor-pointer ${btnStyle}`}
-                        >
-                          <span className="w-6 h-6 rounded-full bg-white border border-slate-300 text-slate-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">
-                            {String.fromCharCode(65 + idx)}
+                return (
+                  <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold">
+                          <HelpCircle className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                            Cek Pemahaman Konsep Cepat (5 Soal Refleksi)
                           </span>
-                          <span className="flex-1 leading-relaxed">{opt}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
+                          <h4 className="text-sm sm:text-base font-black text-slate-900">
+                            Refleksi Model Atom {selectedModel.scientist}
+                          </h4>
+                        </div>
+                      </div>
 
-                  {/* Actions for mini-checkpoint */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                    {!isAnswerSubmitted ? (
-                      <>
-                        <button
-                          onClick={() => setShowHint(!showHint)}
-                          className="text-xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 cursor-pointer"
-                        >
-                          <Lightbulb className="w-3.5 h-3.5" />
-                          <span>{showHint ? 'Sembunyikan Petunjuk' : 'Butuh Petunjuk?'}</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            if (selectedOption !== null) setIsAnswerSubmitted(true)
-                          }}
-                          disabled={selectedOption === null}
-                          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-xs transition cursor-pointer"
-                        >
-                          Kirim Jawaban
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setSelectedOption(null)
-                          setIsAnswerSubmitted(false)
-                          setShowHint(false)
-                        }}
-                        className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Coba Jawab Lagi</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Hint box */}
-                  {showHint && !isAnswerSubmitted && (
-                    <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-950 leading-relaxed font-medium">
-                      💡 <strong>Petunjuk:</strong> {guideData.miniCheckpoint.hint}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                          Skor: {quizScore} / {totalQ} Benar
+                        </span>
+                        <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                          {totalQ} Soal Interaktif
+                        </span>
+                      </div>
                     </div>
-                  )}
 
-                  {/* Instant Feedback Explanation */}
-                  {isAnswerSubmitted && (
-                    <div
-                      className={`p-4 rounded-2xl border text-xs sm:text-sm leading-relaxed ${
-                        selectedOption === guideData.miniCheckpoint.correctAnswer
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-950 font-medium'
-                          : 'bg-rose-50 border-rose-200 text-rose-950 font-medium'
-                      }`}
-                    >
-                      <div className="font-bold flex items-center gap-1.5 mb-1">
-                        {selectedOption === guideData.miniCheckpoint.correctAnswer ? (
+                    {/* Question Number Pills Navigation (1 to 5) */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                      {questionList.map((_, qIdx) => {
+                        const status = answeredQuestions[qIdx]
+                        const isCurrent = currentQuestionIndex === qIdx
+                        let pillStyle = 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                        if (isCurrent) {
+                          pillStyle = 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                        } else if (status) {
+                          pillStyle = status.isCorrect
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            : 'bg-rose-100 text-rose-800 border-rose-300'
+                        }
+
+                        return (
+                          <button
+                            key={qIdx}
+                            onClick={() => handleSwitchQuestion(qIdx)}
+                            className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 ${pillStyle}`}
+                          >
+                            <span>Soal {qIdx + 1}</span>
+                            {status && (
+                              status.isCorrect ? (
+                                <Check className="w-3 h-3 text-emerald-600" />
+                              ) : (
+                                <span className="text-[10px] text-rose-600 font-black">✕</span>
+                              )
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start gap-2">
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-mono text-xs font-bold shrink-0 mt-0.5">
+                          #{currentQuestionIndex + 1}
+                        </span>
+                        <p className="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed">
+                          {activeQ.question}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2 mt-1">
+                        {activeQ.options.map((opt, idx) => {
+                          const isChosen = currentChosenOption === idx
+                          const isCorrect = idx === activeQ.correctAnswer
+
+                          let btnStyle =
+                            'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                          if (isCurrentSubmitted) {
+                            if (isCorrect) {
+                              btnStyle = 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold ring-2 ring-emerald-400'
+                            } else if (isChosen) {
+                              btnStyle = 'bg-rose-50 border-rose-400 text-rose-950 font-bold ring-2 ring-rose-400'
+                            } else {
+                              btnStyle = 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+                            }
+                          } else if (isChosen) {
+                            btnStyle = 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400'
+                          }
+
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                if (!isCurrentSubmitted) setSelectedOption(idx)
+                              }}
+                              disabled={isCurrentSubmitted}
+                              className={`w-full p-3.5 rounded-2xl border text-left text-xs sm:text-sm transition flex items-start gap-3 cursor-pointer ${btnStyle}`}
+                            >
+                              <span className="w-6 h-6 rounded-full bg-white border border-slate-300 text-slate-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">
+                                {String.fromCharCode(65 + idx)}
+                              </span>
+                              <span className="flex-1 leading-relaxed">{opt}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {/* Actions for active mini-checkpoint */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        {!isCurrentSubmitted ? (
                           <>
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                            <span>Luar Biasa, Jawabanmu Benar!</span>
+                            <button
+                              onClick={() => setShowHint(!showHint)}
+                              className="text-xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 cursor-pointer"
+                            >
+                              <Lightbulb className="w-3.5 h-3.5" />
+                              <span>{showHint ? 'Sembunyikan Petunjuk' : 'Butuh Petunjuk?'}</span>
+                            </button>
+
+                            <button
+                              onClick={handleAnswerSubmit}
+                              disabled={selectedOption === null}
+                              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-xs transition cursor-pointer"
+                            >
+                              Kirim Jawaban
+                            </button>
                           </>
                         ) : (
-                          <>
-                            <AlertTriangle className="w-4 h-4 text-rose-600" />
-                            <span>Jawaban Kurang Tepat, Mari Pahami Konsepnya:</span>
-                          </>
+                          <div className="flex items-center gap-2 flex-wrap w-full justify-between">
+                            <button
+                              onClick={handleResetCurrent}
+                              className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Coba Jawab Lagi Soal Ini</span>
+                            </button>
+
+                            {currentQuestionIndex < totalQ - 1 && (
+                              <button
+                                onClick={() => handleSwitchQuestion(currentQuestionIndex + 1)}
+                                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                              >
+                                <span>Lanjut ke Soal #{currentQuestionIndex + 2}</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
-                      <p>{guideData.miniCheckpoint.explanation}</p>
+
+                      {/* Hint box */}
+                      {showHint && !isCurrentSubmitted && (
+                        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-950 leading-relaxed font-medium">
+                          💡 <strong>Petunjuk:</strong> {activeQ.hint}
+                        </div>
+                      )}
+
+                      {/* Instant Feedback Explanation */}
+                      {isCurrentSubmitted && (
+                        <div
+                          className={`p-4 rounded-2xl border text-xs sm:text-sm leading-relaxed ${
+                            currentChosenOption === activeQ.correctAnswer
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-950 font-medium'
+                              : 'bg-rose-50 border-rose-200 text-rose-950 font-medium'
+                          }`}
+                        >
+                          <div className="font-bold flex items-center gap-1.5 mb-1">
+                            {currentChosenOption === activeQ.correctAnswer ? (
+                              <>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                <span>Luar Biasa, Jawabanmu Benar!</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-4 h-4 text-rose-600" />
+                                <span>Jawaban Kurang Tepat, Mari Pahami Konsepnya:</span>
+                              </>
+                            )}
+                          </div>
+                          <p>{activeQ.explanation}</p>
+                        </div>
+                      )}
+
+                      {/* Total Completion Progress Badge */}
+                      {totalAnswered === totalQ && (
+                        <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-center justify-between text-xs text-indigo-950 font-bold">
+                          <span>🎉 Kamu telah menjawab seluruh 5 soal refleksi model {selectedModel.scientist}!</span>
+                          <span className="text-emerald-700 font-extrabold">{quizScore} / {totalQ} Benar</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                )
+              })()}
 
               {/* Bottom Transition: Next Model or Quiz */}
               <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 text-white shadow-xl shadow-indigo-600/20 flex flex-col md:flex-row items-center justify-between gap-5">
@@ -1016,7 +1085,7 @@ export function TimelineWorkspace({
                   <p className="text-xs sm:text-sm text-indigo-100 font-medium mt-1 max-w-xl">
                     {nextModel
                       ? `Lihat bagaimana ${nextModel.scientist} memecahkan kelemahan model ${selectedModel.scientist} pada tahun ${nextModel.period}.`
-                      : 'Sekarang saatnya menguji seluruh pemahamanmu dalam Uji Pemahaman Konsep Komprehensif (10 Soal Variatif).'}
+                      : 'Sekarang saatnya menguji seluruh pemahamanmu dalam Uji Pemahaman Konsep Komprehensif (25 Soal Diagnostik).'}
                   </p>
                 </div>
 
@@ -1041,7 +1110,7 @@ export function TimelineWorkspace({
                       onClick={onNavigateToQuiz}
                       className="px-6 py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs sm:text-sm transition flex items-center gap-2 shadow-lg shadow-emerald-400/30 cursor-pointer"
                     >
-                      <span>Uji Pemahaman (10 Soal)</span>
+                      <span>Uji Pemahaman (25 Soal)</span>
                       <ArrowRight className="w-4 h-4 text-slate-950" />
                     </button>
                   )}
