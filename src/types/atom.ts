@@ -31,7 +31,7 @@ export interface ReferenceItem {
 }
 
 export interface AtomModel {
-  id: 'democritus' | 'dalton' | 'thomson' | 'rutherford' | 'bohr' | 'quantum'
+  id: 'democritus' | 'dalton' | 'thomson' | 'rutherford' | 'bohr' | 'quantum' | (string & {})
   name: string
   scientist: string
   period: string

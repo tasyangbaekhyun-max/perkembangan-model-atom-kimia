@@ -28,6 +28,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [classCode, setClassCode] = useState('KIM-X-FASE-E')
+  const [role, setRole] = useState<'student' | 'teacher'>('student')
   const [rememberDevice, setRememberDevice] = useState(true)
 
   // Password visibility
@@ -51,6 +52,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
   const [googleNameInput, setGoogleNameInput] = useState('Budi Santoso')
   const [googleEmailInput, setGoogleEmailInput] = useState('budi.santoso@gmail.com')
   const [googleClassInput, setGoogleClassInput] = useState('KIM-X-FASE-E')
+  const [googleRole, setGoogleRole] = useState<'student' | 'teacher'>('student')
 
   const resetMessages = () => {
     setErrorMessage(null)
@@ -128,6 +130,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
         password,
         confirmPassword,
         classCode: classCode.trim() || 'KIM-X-FASE-E',
+        role,
         rememberDevice,
       })
 
@@ -220,9 +223,10 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
     setShowGoogleModal(false)
     try {
       const access = await authService.loginWithGoogle({
-        customName: googleNameInput.trim() || 'Siswa Kimia',
+        customName: googleNameInput.trim() || (googleRole === 'teacher' ? 'Dr. Guru Kimia' : 'Siswa Kimia'),
         email: googleEmailInput.trim() || undefined,
         classCode: googleClassInput.trim() || 'KIM-X-FASE-E',
+        role: googleRole,
         rememberDevice,
       })
       onSuccessLogin(access)
@@ -496,6 +500,38 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
             {/* ============================================================== */}
             {mode === 'register' && (
               <form onSubmit={handleRegister} className="flex flex-col gap-3.5">
+                
+                {/* Pilihan Peran: Siswa vs Guru */}
+                <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => setRole('student')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      role === 'student'
+                        ? 'bg-white text-blue-700 shadow-2xs border border-slate-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>👤 Mode Siswa</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('teacher')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      role === 'teacher'
+                        ? 'bg-indigo-600 text-white shadow-2xs font-extrabold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🎓 Mode Guru</span>
+                  </button>
+                </div>
+
+                {role === 'teacher' && (
+                  <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 text-xs font-medium leading-relaxed">
+                    💡 <strong>Mode Guru:</strong> Anda akan memiliki hak akses penuh untuk mengelola materi (CRUD) dan butir soal kuis tanpa pembatasan Lock Materi.
+                  </div>
+                )}
                 
                 {/* Nama Lengkap */}
                 <div className="relative">
@@ -868,6 +904,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                   setGoogleNameInput('Budi Santoso')
                   setGoogleEmailInput('budi.santoso@gmail.com')
                   setGoogleClassInput('KIM-X-FASE-E')
+                  setGoogleRole('student')
                 }}
                 className={`p-3 rounded-2xl border text-left flex items-center justify-between cursor-pointer transition ${
                   googleEmailInput === 'budi.santoso@gmail.com'
@@ -884,7 +921,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                     <div className="text-[10px] text-slate-500">budi.santoso@gmail.com</div>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">
                   Siswa
                 </span>
               </button>
@@ -895,6 +932,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                   setGoogleNameInput('Dra. Siti Nurhaliza')
                   setGoogleEmailInput('siti.nurhaliza.guru@gmail.com')
                   setGoogleClassInput('GURU-KIMIA-X')
+                  setGoogleRole('teacher')
                 }}
                 className={`p-3 rounded-2xl border text-left flex items-center justify-between cursor-pointer transition ${
                   googleEmailInput === 'siti.nurhaliza.guru@gmail.com'

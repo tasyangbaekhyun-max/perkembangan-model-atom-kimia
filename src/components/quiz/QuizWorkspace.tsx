@@ -23,10 +23,14 @@ import {
   X,
   UploadCloud,
   RefreshCw,
-  LogIn
+  LogIn,
+  Plus,
+  Edit3,
+  GraduationCap
 } from 'lucide-react'
 import { QUIZ_QUESTIONS, QUESTION_SET_VERSION } from '../../data/quizQuestions'
 import type {
+  QuizQuestion,
   DragDropOrderQuestion,
   QuizAttemptSession,
   FinalScoreHistory,
@@ -42,6 +46,10 @@ import {
   type UserAccess,
   type SubmissionStatus
 } from '../../lib'
+import { learningContentService } from '../../services/learningContentService'
+import { QuestionEditorModal } from '../editor/QuestionEditorModal'
+import { DeleteConfirmationModal } from '../editor/DeleteConfirmationModal'
+import { RichContentRenderer } from '../editor/RichContentRenderer'
 
 interface QuizWorkspaceProps {
   onBackToHome?: () => void
@@ -52,6 +60,16 @@ interface QuizWorkspaceProps {
 export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogin }: QuizWorkspaceProps) {
   // Akun Aktif & Sesi dari SDK
   const [userAccess, setUserAccess] = useState<UserAccess>(() => authService.getAccess())
+
+  // Data Soal Dinamis dari learningContentService
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(() => learningContentService.getQuizQuestions())
+
+  // State Modal Editor & Hapus Soal untuk Guru (CRUD)
+  const [isQuestionEditorOpen, setIsQuestionEditorOpen] = useState(false)
+  const [questionToEdit, setQuestionToEdit] = useState<QuizQuestion | null>(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeletingQuestion, setIsDeletingQuestion] = useState(false)
+  const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null)
 
   // Sesi Aktif Kuis dari partisi akun aktif (Lampiran B / Bab 4)
   const [session, setSession] = useState<QuizAttemptSession>(() => {
@@ -84,22 +102,75 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
   // Selected item for click-to-move in Drag and Drop (Mobile-friendly)
   const [selectedDragItem, setSelectedDragItem] = useState<string | null>(null)
 
-  // Listener Sesi SDK untuk pembaruan akun aktif
-  // Sesuai aturan: "Perbarui ID akun aktif dari listener sesi SDK" dan "Hasil/antrean selalu dibaca dari ruang akun aktif"
+  // Listener Sesi SDK untuk pembaruan akun aktif & Bank Soal dinamis
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChanged((access) => {
+    const unsubQuestions = learningContentService.subscribeQuestions((updated) => {
+      setQuizQuestions(updated)
+    })
+
+    const unsubAuth = authService.onAuthStateChanged((access) => {
       setUserAccess(access)
       const current = SyncService.loadActiveSession()
       setSession(current)
       setScoreHistory(SyncService.loadScoreHistory())
       setSubmissionStatus(SyncService.getSubmissionStatus(current.attemptId))
     })
-    return unsubscribe
+
+    return () => {
+      unsubQuestions()
+      unsubAuth()
+    }
   }, [])
 
-  const currentQuestionIndex = session.currentQuestionIndex
-  const currentQ = QUIZ_QUESTIONS[currentQuestionIndex]
-  const totalQuestions = QUIZ_QUESTIONS.length
+  const isTeacher = userAccess.role === 'teacher' || userAccess.role === 'admin'
+
+  const currentQuestionIndex = Math.min(session.currentQuestionIndex, Math.max(0, quizQuestions.length - 1))
+  const currentQ = quizQuestions[currentQuestionIndex] || quizQuestions[0] || QUIZ_QUESTIONS[0]
+  const totalQuestions = quizQuestions.length
+
+  // Handler CRUD Soal untuk Mode Guru
+  const handleOpenCreateQuestion = () => {
+    setQuestionToEdit(null)
+    setIsQuestionEditorOpen(true)
+  }
+
+  const handleOpenEditQuestion = () => {
+    setQuestionToEdit(currentQ)
+    setIsQuestionEditorOpen(true)
+  }
+
+  const handleSaveQuestion = (savedQ: QuizQuestion) => {
+    learningContentService.saveQuizQuestion(savedQ)
+    setActionSuccessMessage(`Soal "${savedQ.title}" berhasil disimpan!`)
+    setTimeout(() => setActionSuccessMessage(null), 3500)
+  }
+
+  const handleConfirmDeleteQuestion = () => {
+    setIsDeletingQuestion(true)
+    const result = learningContentService.deleteQuizQuestion(currentQ.id)
+    setIsDeletingQuestion(false)
+    setIsDeleteModalOpen(false)
+
+    if (result.success) {
+      updateSession((prev) => ({
+        ...prev,
+        currentQuestionIndex: Math.max(0, currentQuestionIndex - 1)
+      }))
+      setActionSuccessMessage('Soal berhasil dihapus dari evaluasi.')
+      setTimeout(() => setActionSuccessMessage(null), 3500)
+    } else {
+      alert(result.error || 'Gagal menghapus soal.')
+    }
+  }
+
+  const handleResetDefaultQuestions = () => {
+    if (window.confirm('Kembalikan bank soal kuis ke 10 butir soal standar bawaan?')) {
+      learningContentService.resetQuizQuestionsToDefault()
+      updateSession((prev) => ({ ...prev, currentQuestionIndex: 0 }))
+      setActionSuccessMessage('Bank soal berhasil direset ke standar bawaan.')
+      setTimeout(() => setActionSuccessMessage(null), 3500)
+    }
+  }
 
   const currentAnswer = session.draftAnswers[currentQ.id]
   const currentResponse: ItemResponseRecord | undefined = session.itemResponses[currentQ.id]
@@ -252,11 +323,14 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
 
   // Cek apakah suatu soal terbuka (unlocked)
   // Soal 0 selalu terbuka. Soal N terbuka jika soal N-1 sudah dijawab benar.
+  // KETENTUAN KHUSUS: Mode Guru TIDAK dikenai Lock Soal dan dapat mengakses seluruh butir soal!
   const isQuestionUnlocked = useCallback((index: number): boolean => {
+    if (isTeacher) return true
     if (index === 0) return true
-    const previousQuestionId = QUIZ_QUESTIONS[index - 1].id
-    return session.itemResponses[previousQuestionId]?.isCorrect ?? false
-  }, [session.itemResponses])
+    const previousQuestion = quizQuestions[index - 1]
+    if (!previousQuestion) return true
+    return session.itemResponses[previousQuestion.id]?.isCorrect ?? false
+  }, [session.itemResponses, isTeacher, quizQuestions])
 
   // Handler Pilihan Ganda
   const handleMultipleChoiceSelect = useCallback((optionIndex: number) => {
@@ -728,6 +802,77 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
         </div>
       )}
 
+      {/* ---------------- TEACHER CONTROL BAR (CRUD SOAL) ---------------- */}
+      {isTeacher && (
+        <div className="p-3.5 bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white rounded-3xl shadow-md border border-indigo-700/60 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-amber-300">
+              <GraduationCap className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-xs tracking-tight">Mode Guru: Bank Soal & Evaluasi</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold">
+                  Bypass Lock Soal
+                </span>
+              </div>
+              <p className="text-[11px] text-indigo-200">
+                Akses ke seluruh soal terbuka. Anda dapat membuat, mengedit, atau menghapus butir soal pembelajaran.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleOpenCreateQuestion}
+              className="px-3.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-98"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Tambah Soal Baru</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenEditQuestion}
+              className="px-3.5 py-1.5 rounded-xl bg-white text-indigo-900 hover:bg-indigo-50 font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-98"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-indigo-700" />
+              <span>Edit Soal Ini</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsDeleteModalOpen(true)}
+              disabled={quizQuestions.length <= 1}
+              className="px-3 py-1.5 rounded-xl bg-rose-500/80 hover:bg-rose-600 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition active:scale-98"
+              title="Hapus butir soal saat ini"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Hapus</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResetDefaultQuestions}
+              className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition"
+              title="Reset ke bank soal standar bawaan"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Reset</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Notifikasi Aksi Berhasil */}
+      {actionSuccessMessage && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2 animate-fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{actionSuccessMessage}</span>
+        </div>
+      )}
+
       {/* ---------------- 5. MASTERY QUESTION PALETTE ---------------- */}
       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
         <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
@@ -741,7 +886,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
         </div>
 
         <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-          {QUIZ_QUESTIONS.map((q, idx) => {
+          {quizQuestions.map((q, idx) => {
             const isCurrent = idx === currentQuestionIndex
             const response = session.itemResponses[q.id]
             const isFrozen = !!session.frozenQuestions[q.id]
@@ -831,9 +976,9 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
         {/* VARIATION 1: PILIHAN GANDA */}
         {currentQ.type === 'multiple_choice' && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm md:text-base font-bold text-slate-800 leading-relaxed">
-              {currentQ.question}
-            </p>
+            <div className="text-sm md:text-base font-bold text-slate-800 leading-relaxed">
+              <RichContentRenderer content={currentQ.question} />
+            </div>
 
             <div className="space-y-2.5" role="radiogroup" aria-label={currentQ.question}>
               {currentQ.options.map((opt, optIdx) => {
@@ -867,7 +1012,9 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
                       <span className="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                         {String.fromCharCode(65 + optIdx)}
                       </span>
-                      <span className="leading-relaxed font-medium">{opt}</span>
+                      <div className="leading-relaxed font-medium">
+                        <RichContentRenderer content={opt} />
+                      </div>
                     </div>
 
                     {isCurrentCorrect && isCorrectOption && (
@@ -886,9 +1033,9 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
         {/* VARIATION 2: MENJODOHKAN */}
         {currentQ.type === 'matching' && (
           <div className="flex flex-col gap-4">
-            <p className="text-xs md:text-sm font-bold text-slate-800 leading-relaxed bg-indigo-50/70 p-3.5 rounded-2xl border border-indigo-100">
-              {currentQ.instruction}
-            </p>
+            <div className="text-xs md:text-sm font-bold text-slate-800 leading-relaxed bg-indigo-50/70 p-3.5 rounded-2xl border border-indigo-100">
+              <RichContentRenderer content={currentQ.instruction} />
+            </div>
 
             <div className="space-y-3">
               {currentQ.pairs.map((pair, pIdx) => {
@@ -1178,7 +1325,9 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
               <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold text-amber-900 block mb-0.5">Petunjuk Bimbingan Konseptual:</span>
-                <p className="text-slate-700 leading-relaxed font-medium">{currentQ.hint}</p>
+                <div className="text-slate-700 leading-relaxed font-medium">
+                  <RichContentRenderer content={currentQ.hint} />
+                </div>
               </div>
             </div>
 
@@ -1210,7 +1359,9 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
                 <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
                 Pembahasan Ilmiah &amp; Konsep Hakiki:
               </span>
-              <p className="text-slate-700 leading-relaxed font-medium">{currentQ.explanation}</p>
+              <div className="text-slate-700 leading-relaxed font-medium">
+                <RichContentRenderer content={currentQ.explanation} />
+              </div>
             </div>
           </div>
         )}
@@ -1456,6 +1607,25 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
           </div>
         </div>
       )}
+
+      {/* ── Modal Pengelolaan Soal untuk Guru (CRUD) ──────────────────────── */}
+      <QuestionEditorModal
+        isOpen={isQuestionEditorOpen}
+        questionToEdit={questionToEdit}
+        onSave={handleSaveQuestion}
+        onClose={() => setIsQuestionEditorOpen(false)}
+      />
+
+      {/* ── Modal Konfirmasi Hapus Soal ───────────────────────────────────── */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        title="Hapus Butir Soal"
+        itemName={currentQ.title}
+        itemType="soal"
+        onConfirm={handleConfirmDeleteQuestion}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        isDeleting={isDeletingQuestion}
+      />
 
     </div>
   )

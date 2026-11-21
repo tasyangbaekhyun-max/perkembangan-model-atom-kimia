@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Atom,
   Clock,
@@ -24,12 +24,21 @@ import {
   Layers,
   LayoutList,
   Check,
-  Lock
+  Lock,
+  Plus,
+  Edit3,
+  Trash2,
+  GraduationCap
 } from 'lucide-react'
 import type { AtomModel, ReferenceItem } from '../../types/atom'
 import { ATOM_MODELS } from '../../data/atomModels'
 import { LEARNING_FLOW_DATA, type ModelLearningGuide } from '../../data/learningFlowData'
 import { AtomSimulatorWrapper } from '../simulations/AtomSimulatorWrapper'
+import { learningContentService } from '../../services/learningContentService'
+import { authService, type UserAccess } from '../../lib'
+import { MaterialEditorModal } from '../editor/MaterialEditorModal'
+import { DeleteConfirmationModal } from '../editor/DeleteConfirmationModal'
+import { RichContentRenderer } from '../editor/RichContentRenderer'
 
 interface TimelineWorkspaceProps {
   initialModelId?: string
@@ -46,14 +55,50 @@ export function TimelineWorkspace({
   onBackToHome,
   onNavigateToQuiz
 }: TimelineWorkspaceProps) {
+  // Data model dinamis dari learningContentService
+  const [atomModels, setAtomModels] = useState<AtomModel[]>(() => learningContentService.getAtomModels())
+
+  // Sesi Autentikasi Pengguna & Mode Hak Akses (Guru vs Siswa)
+  const [userAccess, setUserAccess] = useState<UserAccess>(() => authService.getAccess())
+
   // Active model state
   const [selectedModel, setSelectedModel] = useState<AtomModel>(() => {
+    const models = learningContentService.getAtomModels()
     if (initialModelId) {
-      const found = ATOM_MODELS.find((m) => m.id === initialModelId)
+      const found = models.find((m) => m.id === initialModelId)
       if (found) return found
     }
-    return ATOM_MODELS[0] // Start from Democritus / beginning for structured sequence
+    return models[0] || ATOM_MODELS[0]
   })
+
+  // State Editor & Hapus Materi untuk Guru (CRUD)
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [modelToEdit, setModelToEdit] = useState<AtomModel | null>(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null)
+
+  // Listener untuk perubahan data materi dan status autentikasi
+  useEffect(() => {
+    const unsubModels = learningContentService.subscribeModels((updated) => {
+      setAtomModels(updated)
+      setSelectedModel((prev) => {
+        const found = updated.find((m) => m.id === prev.id)
+        return found || updated[0] || ATOM_MODELS[0]
+      })
+    })
+
+    const unsubAuth = authService.onAuthStateChanged((access) => {
+      setUserAccess(access)
+    })
+
+    return () => {
+      unsubModels()
+      unsubAuth()
+    }
+  }, [])
+
+  const isTeacher = userAccess.role === 'teacher' || userAccess.role === 'admin'
 
   // Mode: Guided sequential flow (default & best for students) vs Split view
   const [viewMode, setViewMode] = useState<'guided' | 'split'>('guided')
@@ -63,7 +108,7 @@ export function TimelineWorkspace({
 
   // Track highest step reached per model (to enforce sequential progress)
   const [highestStepPerModel, setHighestStepPerModel] = useState<Record<string, number>>({
-    [ATOM_MODELS[0].id]: 0 // start at step index 0 (context)
+    [atomModels[0]?.id || 'democritus']: 0
   })
 
   // Track which model indices are unlocked (index-based, Democritus = 0 is always unlocked)
@@ -93,11 +138,11 @@ export function TimelineWorkspace({
   const guideData: ModelLearningGuide =
     LEARNING_FLOW_DATA[selectedModel.id] || LEARNING_FLOW_DATA.dalton
 
-  const currentModelIndex = ATOM_MODELS.findIndex((m) => m.id === selectedModel.id)
-  const isFirstModel = currentModelIndex === 0
-  const isLastModel = currentModelIndex === ATOM_MODELS.length - 1
-  const prevModel = !isFirstModel ? ATOM_MODELS[currentModelIndex - 1] : null
-  const nextModel = !isLastModel ? ATOM_MODELS[currentModelIndex + 1] : null
+  const currentModelIndex = atomModels.findIndex((m) => m.id === selectedModel.id)
+  const isFirstModel = currentModelIndex <= 0
+  const isLastModel = currentModelIndex >= atomModels.length - 1
+  const prevModel = !isFirstModel ? atomModels[currentModelIndex - 1] : null
+  const nextModel = !isLastModel ? atomModels[currentModelIndex + 1] : null
 
   // Helper: get highest step index reached for a given model
   const getHighestStepIndex = (modelId: string): number => {
@@ -108,15 +153,17 @@ export function TimelineWorkspace({
   const getStepIndex = (step: LearningStep): number => STEP_ORDER.indexOf(step)
 
   // Check if a step is accessible (sequential lock)
+  // KETENTUAN KHUSUS: Mode Guru TIDAK dikenai Lock Materi dan bebas melompat ke langkah manapun!
   const isStepAccessible = (step: LearningStep): boolean => {
+    if (isTeacher) return true
     const stepIdx = getStepIndex(step)
     const highestReached = getHighestStepIndex(selectedModel.id)
-    // step 0 always accessible, others accessible only if previous was reached
     return stepIdx === 0 || stepIdx <= highestReached + 1
   }
 
   // Check if a step was already completed (reached)
   const isStepCompleted = (step: LearningStep): boolean => {
+    if (isTeacher) return true
     const stepIdx = getStepIndex(step)
     return stepIdx <= getHighestStepIndex(selectedModel.id)
   }
@@ -164,13 +211,60 @@ export function TimelineWorkspace({
   }
 
   // Check if a model (by index) is unlocked/accessible
+  // KETENTUAN KHUSUS: Mode Guru TIDAK dikenai pembatasan Lock Materi!
   const isModelUnlocked = (idx: number): boolean => {
+    if (isTeacher) return true
     return idx <= unlockedModelIndex
   }
 
   // Check if the current model's evaluation step is completed (all 4 steps done)
   const isCurrentModelCompleted = (): boolean => {
+    if (isTeacher) return true
     return isStepCompleted('evaluation')
+  }
+
+  // ==========================================
+  // HANDLER CRUD MATERI UNTUK MODE GURU
+  // ==========================================
+  const handleOpenCreateModal = () => {
+    setModelToEdit(null)
+    setIsEditorOpen(true)
+  }
+
+  const handleOpenEditModal = () => {
+    setModelToEdit(selectedModel)
+    setIsEditorOpen(true)
+  }
+
+  const handleSaveModel = (savedModel: AtomModel) => {
+    learningContentService.saveAtomModel(savedModel)
+    setSelectedModel(savedModel)
+    setActionSuccessMessage(`Materi "${savedModel.name}" berhasil disimpan!`)
+    setTimeout(() => setActionSuccessMessage(null), 3500)
+  }
+
+  const handleConfirmDelete = () => {
+    setIsDeleting(true)
+    const result = learningContentService.deleteAtomModel(selectedModel.id)
+    setIsDeleting(false)
+    setIsDeleteModalOpen(false)
+
+    if (result.success) {
+      const remaining = learningContentService.getAtomModels()
+      setSelectedModel(remaining[0] || ATOM_MODELS[0])
+      setActionSuccessMessage('Materi berhasil dihapus dari garis waktu.')
+      setTimeout(() => setActionSuccessMessage(null), 3500)
+    } else {
+      alert(result.error || 'Gagal menghapus materi.')
+    }
+  }
+
+  const handleResetDefaultModels = () => {
+    if (window.confirm('Kembalikan seluruh materi pembelajaran ke standar bawaan kurikulum?')) {
+      learningContentService.resetAtomModelsToDefault()
+      setActionSuccessMessage('Materi berhasil direset ke standar kurikulum bawaan.')
+      setTimeout(() => setActionSuccessMessage(null), 3500)
+    }
   }
 
   const stepsList = [
@@ -259,13 +353,85 @@ export function TimelineWorkspace({
 
       {/* ── Garis Waktu Perkembangan Model Atom (Urutan Kronologis) ────────────── */}
       <section className="flex flex-col gap-3">
+        
+        {/* Guru Action Bar (CRUD Materi Pembelajaran) */}
+        {isTeacher && (
+          <div className="p-3.5 bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white rounded-3xl shadow-md border border-indigo-700/60 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-amber-300">
+                <GraduationCap className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-xs tracking-tight">Mode Guru Aktif</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold">
+                    Lock Materi Nonaktif
+                  </span>
+                </div>
+                <p className="text-[11px] text-indigo-200">
+                  Akses penuh terbuka. Anda dapat mengedit, menambah, atau menghapus materi pembelajaran secara mandiri.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleOpenCreateModal}
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-98"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Materi Baru</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenEditModal}
+                className="px-3.5 py-1.5 rounded-xl bg-white text-indigo-900 hover:bg-indigo-50 font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-98"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-indigo-700" />
+                <span>Edit Materi Ini</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(true)}
+                disabled={atomModels.length <= 1}
+                className="px-3 py-1.5 rounded-xl bg-rose-500/80 hover:bg-rose-600 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition active:scale-98"
+                title="Hapus materi saat ini"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Hapus</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetDefaultModels}
+                className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition"
+                title="Reset materi ke standar bawaan"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Notifikasi Aksi Berhasil */}
+        {actionSuccessMessage && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2 animate-fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{actionSuccessMessage}</span>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
               <Clock className="w-4 h-4 text-indigo-600" /> Garis Waktu Perkembangan Model Atom
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Urutan perkembangan teori sains dari masa ke masa • Model ke-{currentModelIndex + 1} dari {ATOM_MODELS.length}
+              Urutan perkembangan teori sains dari masa ke masa • Model ke-{currentModelIndex + 1} dari {atomModels.length}
             </p>
           </div>
           <span className="hidden sm:inline-block text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
@@ -273,9 +439,9 @@ export function TimelineWorkspace({
           </span>
         </div>
 
-        {/* 6 Models Horizontal Sequence Bar */}
+        {/* Models Horizontal Sequence Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {ATOM_MODELS.map((model, idx) => {
+          {atomModels.map((model, idx) => {
             const isSelected = selectedModel.id === model.id
             const isPassed = idx < currentModelIndex
             const unlocked = isModelUnlocked(idx)
@@ -702,18 +868,18 @@ export function TimelineWorkspace({
                   <h4 className="text-xs font-bold uppercase text-indigo-700 tracking-wider mb-1 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5" /> Konsep Inti Model Atom
                   </h4>
-                  <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
-                    {selectedModel.summary}
-                  </p>
+                  <div className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
+                    <RichContentRenderer content={selectedModel.summary} />
+                  </div>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-100 shadow-2xs">
                   <h4 className="text-xs font-bold uppercase text-sky-800 tracking-wider mb-1 flex items-center gap-1.5">
                     💡 Analogi Konseptual Sederhana
                   </h4>
-                  <p className="text-xs sm:text-sm text-sky-950 leading-relaxed font-medium">
-                    {selectedModel.analogy}
-                  </p>
+                  <div className="text-xs sm:text-sm text-sky-950 leading-relaxed font-medium">
+                    <RichContentRenderer content={selectedModel.analogy} />
+                  </div>
                 </div>
               </div>
 
@@ -748,9 +914,9 @@ export function TimelineWorkspace({
                       <h5 className="text-xs font-black text-sky-900 uppercase">1. Makroskopik</h5>
                     </div>
                     <p className="text-[11px] text-slate-500 font-bold">Gejala Nyata Teramati di Lab</p>
-                    <p className="text-xs text-sky-950 font-medium leading-relaxed">
-                      {selectedModel.representations.macroscopic}
-                    </p>
+                    <div className="text-xs text-sky-950 font-medium leading-relaxed">
+                      <RichContentRenderer content={selectedModel.representations.macroscopic} />
+                    </div>
                   </div>
 
                   {/* Submikroskopik */}
@@ -762,9 +928,9 @@ export function TimelineWorkspace({
                       <h5 className="text-xs font-black text-emerald-900 uppercase">2. Submikroskopik</h5>
                     </div>
                     <p className="text-[11px] text-slate-500 font-bold">Struktur Partikel Subatomik</p>
-                    <p className="text-xs text-emerald-950 font-medium leading-relaxed">
-                      {selectedModel.representations.submicroscopic}
-                    </p>
+                    <div className="text-xs text-emerald-950 font-medium leading-relaxed">
+                      <RichContentRenderer content={selectedModel.representations.submicroscopic} />
+                    </div>
                   </div>
 
                   {/* Simbolik */}
@@ -776,9 +942,9 @@ export function TimelineWorkspace({
                       <h5 className="text-xs font-black text-purple-900 uppercase">3. Simbolik</h5>
                     </div>
                     <p className="text-[11px] text-slate-500 font-bold">Notasi, Rumus &amp; Formula</p>
-                    <p className="text-xs text-purple-950 font-medium leading-relaxed">
-                      {selectedModel.representations.symbolic}
-                    </p>
+                    <div className="text-xs text-purple-950 font-medium leading-relaxed">
+                      <RichContentRenderer content={selectedModel.representations.symbolic} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -801,9 +967,9 @@ export function TimelineWorkspace({
                       <span className="w-6 h-6 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">
                         {idx + 1}
                       </span>
-                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
-                        {rule}
-                      </p>
+                      <div className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                        <RichContentRenderer content={rule} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -845,9 +1011,9 @@ export function TimelineWorkspace({
                       Keterbatasan / Anomali Fisik Model
                     </h4>
                   </div>
-                  <p className="text-xs sm:text-sm text-rose-950 font-medium leading-relaxed mt-1">
-                    {selectedModel.limitations}
-                  </p>
+                  <div className="text-xs sm:text-sm text-rose-950 font-medium leading-relaxed mt-1">
+                    <RichContentRenderer content={selectedModel.limitations} />
+                  </div>
                 </div>
 
                 {/* Evolution Trigger to Next Model */}
@@ -1006,7 +1172,7 @@ export function TimelineWorkspace({
               <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 text-white shadow-xl shadow-indigo-600/20 flex flex-col md:flex-row items-center justify-between gap-5">
                 <div className="text-center md:text-left">
                   <span className="text-[10px] font-mono font-bold px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 inline-block mb-2">
-                    Tahapan Model {currentModelIndex + 1} dari {ATOM_MODELS.length} Tuntas!
+                    Tahapan Model {currentModelIndex + 1} dari {atomModels.length} Tuntas!
                   </span>
                   <h3 className="text-lg sm:text-xl font-black text-white">
                     {nextModel
@@ -1243,6 +1409,25 @@ export function TimelineWorkspace({
           </div>
         </div>
       )}
+
+      {/* ── Modal Pengelolaan Materi untuk Guru (CRUD) ────────────────────── */}
+      <MaterialEditorModal
+        isOpen={isEditorOpen}
+        modelToEdit={modelToEdit}
+        onSave={handleSaveModel}
+        onClose={() => setIsEditorOpen(false)}
+      />
+
+      {/* ── Modal Konfirmasi Hapus Materi ─────────────────────────────────── */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        title="Hapus Materi Pembelajaran"
+        itemName={selectedModel.name}
+        itemType="materi"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        isDeleting={isDeleting}
+      />
 
     </div>
   )
