@@ -123,6 +123,7 @@ const DEFAULT_USERS: RegisteredUser[] = [
 class AuthService {
   private listeners: Set<AuthListener> = new Set()
   private currentSession: StoredSession | null = null
+  private previewRoleOverride: 'student' | 'teacher' | null = null
 
   constructor() {
     this.initUsersFromStorage()
@@ -191,6 +192,18 @@ class AuthService {
     } catch (err) {
       console.warn('[Firebase] Inisialisasi onFirebaseAuthStateChanged gagal:', err)
     }
+  }
+
+  /**
+   * Mengatur override mode peran untuk pengujian pratinjau (Mode Guru <-> Mode Siswa)
+   */
+  public setPreviewRole(role: 'student' | 'teacher' | null): void {
+    this.previewRoleOverride = role
+    this.notifyListeners()
+  }
+
+  public getPreviewRole(): 'student' | 'teacher' | null {
+    return this.previewRoleOverride
   }
 
   private initUsersFromStorage(): void {
@@ -272,12 +285,14 @@ class AuthService {
   public getAccess(): UserAccess {
     if (this.currentSession) {
       const classPart = this.currentSession.classCode || 'Fase E'
+      const effectiveRole = this.previewRoleOverride || this.currentSession.role
+      const roleLabel = effectiveRole === 'teacher' ? 'Guru' : 'Siswa'
       return {
         userId: this.currentSession.userId,
         name: this.currentSession.name,
         email: this.currentSession.email,
-        alias: `${this.currentSession.name} (${classPart})`,
-        role: this.currentSession.role,
+        alias: `${this.currentSession.name} (${classPart})${this.previewRoleOverride ? ` [Mode ${roleLabel}]` : ''}`,
+        role: effectiveRole,
         classCode: this.currentSession.classCode,
         schoolName: this.currentSession.schoolName,
         isAuthenticated: true,
@@ -285,11 +300,12 @@ class AuthService {
     }
 
     const guestId = getOrCreateGuestId()
+    const guestRole = this.previewRoleOverride || 'guest'
     return {
       userId: guestId,
-      name: 'Siswa Tamu',
-      alias: 'Tamu (Tanpa Login)',
-      role: 'guest',
+      name: guestRole === 'teacher' ? 'Guru Tamu' : 'Siswa Tamu',
+      alias: guestRole === 'teacher' ? 'Guru Tamu (Uji Coba)' : 'Tamu (Tanpa Login)',
+      role: guestRole,
       classCode: 'Belum Gabung Kelas',
       isAuthenticated: false,
     }
@@ -742,6 +758,7 @@ class AuthService {
     email?: string
     classCode?: string
     schoolName?: string
+    role?: 'student' | 'teacher'
     rememberDevice?: boolean
   }): Promise<UserAccess> {
     // 1. INTEGRASI NYATA KE GOOGLE AUTH FIREBASE
@@ -820,6 +837,7 @@ class AuthService {
       `${name.toLowerCase().replace(/\s+/g, '.')}.${randomSuffix.toLowerCase()}@gmail.com`
     const classCode = options?.classCode || 'KIM-X-FASE-E'
     const schoolName = options?.schoolName || 'SMA Negeri 1 Jakarta'
+    const role = options?.role || 'student'
 
     const users = this.getRegisteredUsers()
     let user = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
@@ -830,13 +848,16 @@ class AuthService {
         email,
         password: `g_oauth_${randomSuffix}`,
         passwordHash: `g_oauth_${randomSuffix}`,
-        role: 'student',
+        role,
         classCode,
         schoolName,
         createdAt: new Date().toISOString(),
         provider: 'google',
       }
       users.push(user)
+      this.saveRegisteredUsers(users)
+    } else if (options?.role && user.role !== options.role) {
+      user.role = options.role
       this.saveRegisteredUsers(users)
     }
 

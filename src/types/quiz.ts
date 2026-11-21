@@ -8,6 +8,7 @@ export interface MultipleChoiceQuestion {
   id: number
   type: 'multiple_choice'
   title: string
+  conceptTag?: string
   question: string
   options: string[]
   correctAnswer: number
@@ -25,6 +26,7 @@ export interface MatchingQuestion {
   id: number
   type: 'matching'
   title: string
+  conceptTag?: string
   instruction: string
   pairs: MatchingPair[]
   hint: string
@@ -49,6 +51,7 @@ export interface DragDropClassifyQuestion {
   id: number
   type: 'drag_drop_classify'
   title: string
+  conceptTag?: string
   instruction: string
   categories: DragDropClassifyCategory[]
   items: DragDropClassifyItem[]
@@ -67,6 +70,7 @@ export interface DragDropOrderQuestion {
   id: number
   type: 'drag_drop_order'
   title: string
+  conceptTag?: string
   instruction: string
   correctOrder: OrderItem[]
   hint: string

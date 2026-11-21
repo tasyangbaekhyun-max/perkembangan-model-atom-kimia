@@ -1,5 +1,8 @@
+import { useState, useEffect } from 'react'
 import { ArrowLeft, Layers, CheckCircle2, AlertTriangle, ArrowRight, Library } from 'lucide-react'
-import { ATOM_MODELS } from '../../data/atomModels'
+import { learningContentService } from '../../services/learningContentService'
+import { RichContentRenderer } from '../editor/RichContentRenderer'
+import type { AtomModel } from '../../types/atom'
 
 interface ComparisonViewProps {
   onBackToHome: () => void
@@ -7,6 +10,14 @@ interface ComparisonViewProps {
 }
 
 export function ComparisonView({ onBackToHome, onSelectModel }: ComparisonViewProps) {
+  const [atomModels, setAtomModels] = useState<AtomModel[]>(() => learningContentService.getAtomModels())
+
+  useEffect(() => {
+    const unsub = learningContentService.subscribeModels((updated) => {
+      setAtomModels(updated)
+    })
+    return unsub
+  }, [])
   return (
     <div className="flex flex-col gap-6 w-full animate-fade-in">
       {/* Top Header Navigation */}
@@ -48,7 +59,7 @@ export function ComparisonView({ onBackToHome, onSelectModel }: ComparisonViewPr
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {ATOM_MODELS.map((model) => (
+            {atomModels.map((model) => (
               <tr key={model.id} className="hover:bg-slate-50/80 transition-colors">
                 <td className="p-4 font-bold text-slate-900 whitespace-nowrap">
                   <div className="flex items-center gap-2">
@@ -65,18 +76,18 @@ export function ComparisonView({ onBackToHome, onSelectModel }: ComparisonViewPr
                   </span>
                 </td>
                 <td className="p-4 text-slate-700 font-medium max-w-xs">
-                  {model.summary}
+                  <RichContentRenderer content={model.summary} />
                 </td>
                 <td className="p-4 text-emerald-900 font-medium max-w-xs">
                   <div className="flex items-start gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                    <span>{model.resolvedProblem}</span>
+                    <div><RichContentRenderer content={model.resolvedProblem} /></div>
                   </div>
                 </td>
                 <td className="p-4 text-rose-900 font-medium max-w-xs">
                   <div className="flex items-start gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
-                    <span>{model.limitations}</span>
+                    <div><RichContentRenderer content={model.limitations} /></div>
                   </div>
                 </td>
                 <td className="p-4 text-center whitespace-nowrap">

@@ -28,6 +28,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [classCode, setClassCode] = useState('KIM-X-FASE-E')
+  const [role, setRole] = useState<'student' | 'teacher'>('student')
   const [rememberDevice, setRememberDevice] = useState(true)
 
   // Password visibility
@@ -51,6 +52,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
   const [googleNameInput, setGoogleNameInput] = useState('Budi Santoso')
   const [googleEmailInput, setGoogleEmailInput] = useState('budi.santoso@gmail.com')
   const [googleClassInput, setGoogleClassInput] = useState('KIM-X-FASE-E')
+  const [googleRole, setGoogleRole] = useState<'student' | 'teacher'>('student')
 
   const resetMessages = () => {
     setErrorMessage(null)
@@ -128,6 +130,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
         password,
         confirmPassword,
         classCode: classCode.trim() || 'KIM-X-FASE-E',
+        role,
         rememberDevice,
       })
 
@@ -243,9 +246,10 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
     setShowGoogleModal(false)
     try {
       const access = await authService.loginWithGoogle({
-        customName: googleNameInput.trim() || 'Siswa Kimia',
+        customName: googleNameInput.trim() || (googleRole === 'teacher' ? 'Dr. Guru Kimia' : 'Siswa Kimia'),
         email: googleEmailInput.trim() || undefined,
         classCode: googleClassInput.trim() || 'KIM-X-FASE-E',
+        role: googleRole,
         rememberDevice,
       })
       onSuccessLogin(access)
@@ -263,85 +267,86 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
       <div className="w-full max-w-6xl bg-white rounded-3xl sm:rounded-[36px] shadow-2xl shadow-indigo-100/70 border border-slate-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
         
         {/* ============================================================== */}
-        {/* LEFT COLUMN: HERO 3D ILLUSTRATION & EDUCATIONAL VALUE (5 Cols) */}
+        {/* LEFT COLUMN: CUTE CHIBI ATOM EXPLORER ILLUSTRATION (5 Cols)   */}
         {/* ============================================================== */}
-        <div className="lg:col-span-5 relative bg-gradient-to-br from-sky-50 via-indigo-50/50 to-blue-100/60 p-6 sm:p-10 flex flex-col justify-between overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-200/70">
+        <div className="lg:col-span-5 relative bg-[#fff4f0] p-6 sm:p-8 flex flex-col justify-between overflow-hidden border-b lg:border-b-0 lg:border-r border-rose-100/80">
           
-          {/* Subtle decorative background circles */}
-          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-300/20 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-72 h-72 bg-indigo-300/25 rounded-full blur-3xl pointer-events-none" />
+          {/* Soft pastel ambient background blobs */}
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-72 h-72 bg-rose-200/40 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-1/2 left-1/4 w-48 h-48 bg-purple-200/25 rounded-full blur-2xl pointer-events-none" />
 
-          {/* Headline matching reference style */}
+          {/* Top Header / Welcome Tag */}
           <div className="relative z-10">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 backdrop-blur-xs text-indigo-700 text-[11px] font-extrabold shadow-2xs border border-indigo-100 mb-4">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Platform Pembelajaran Kimia Fase E</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 backdrop-blur-xs text-rose-700 text-[11px] font-extrabold shadow-2xs border border-rose-200/80 mb-3">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-spin-slow" />
+              <span>Petualangan Model Atom • Fase E SMA</span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight leading-snug">
-              Permudah interaksi antar{' '}
-              <span className="text-orange-600 font-black">Guru / Dosen</span> dan{' '}
-              <span className="text-rose-600 font-black">Siswa / Mahasiswa</span> secara online!
+            <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight leading-snug">
+              Halo Penjelajah Cilik!{' '}
+              <span className="text-rose-600 block sm:inline">Yuk Eksplorasi Atom! ⚛️</span>
             </h1>
-            <p className="text-xs sm:text-sm text-slate-600 font-medium mt-2 leading-relaxed">
-              Jelajahi alur sejarah dan pembuktian ilmiah model atom Democritus, Dalton, Thomson, Rutherford, Bohr, hingga Kuantum.
+            <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
+              Temukan misteri 6 model atom mulai dari bola pejal Democritus hingga awan mekanika kuantum.
             </p>
           </div>
 
-          {/* Central 3D Illustration Scene */}
-          <div className="relative my-8 sm:my-10 flex items-center justify-center">
+          {/* Cute Character & Atomic Relics Showcase */}
+          <div className="relative my-4 flex flex-col items-center justify-center">
             
-            {/* FLOATING 3D ICON 1: Pencil & Notepad (Top-Left) */}
-            <div className="absolute -top-3 left-4 sm:left-6 z-20 bg-white/95 backdrop-blur-md p-3 rounded-2xl shadow-xl shadow-slate-300/50 border border-white flex items-center justify-center hover:scale-105 transition-transform">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center">
-                <span className="text-2xl" role="img" aria-label="pencil">✏️</span>
+            {/* Main Chibi Scientist Image */}
+            <div className="relative w-full max-w-[340px] aspect-square rounded-3xl overflow-hidden shadow-xl shadow-rose-200/50 border-4 border-white group">
+              <img
+                src="/atomlab_login_mascot.jpg"
+                alt="Chibi Atom Explorer"
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+              />
+
+              {/* Floating Little Badge: Democritus -> Kuantum */}
+              <div className="absolute bottom-3 left-3 right-3 bg-white/90 backdrop-blur-md rounded-2xl p-2.5 shadow-md border border-white/80 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-black shadow-2xs">
+                    Au
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[11px] font-black text-slate-800 leading-tight">6 Evolusi Model Atom</p>
+                    <p className="text-[9px] font-bold text-rose-500">Democritus s.d Kuantum</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                  Lengkap 🔬
+                </span>
               </div>
             </div>
 
-            {/* FLOATING 3D ICON 2: Ribbon Bookmark (Top-Right) */}
-            <div className="absolute top-2 right-4 sm:right-6 z-20 bg-white/95 backdrop-blur-md p-2.5 rounded-2xl shadow-xl shadow-slate-300/50 border border-white flex items-center justify-center hover:scale-105 transition-transform">
-              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center">
-                <span className="text-xl" role="img" aria-label="bookmark">🔖</span>
+            {/* Kawaii Model Atom Pills Floating Below */}
+            <div className="w-full max-w-[340px] grid grid-cols-3 gap-1.5 mt-3">
+              <div className="bg-white/80 border border-amber-200/80 rounded-xl p-1.5 text-center shadow-2xs">
+                <span className="text-[10px] block font-black text-amber-900">Democritus</span>
+                <span className="text-[8px] text-amber-700 font-medium">Atomos Pejal</span>
+              </div>
+              <div className="bg-white/80 border border-purple-200/80 rounded-xl p-1.5 text-center shadow-2xs">
+                <span className="text-[10px] block font-black text-purple-900">Thomson &amp; Bohr</span>
+                <span className="text-[8px] text-purple-700 font-medium">Elektron &amp; Orbit</span>
+              </div>
+              <div className="bg-white/80 border border-sky-200/80 rounded-xl p-1.5 text-center shadow-2xs">
+                <span className="text-[10px] block font-black text-sky-900">Kuantum</span>
+                <span className="text-[8px] text-sky-700 font-medium">Awan Probabilitas</span>
               </div>
             </div>
 
-            {/* FLOATING 3D ICON 3: Folder / Document (Bottom-Left) */}
-            <div className="absolute -bottom-2 left-6 z-20 bg-white/95 backdrop-blur-md p-2.5 rounded-2xl shadow-xl shadow-slate-300/50 border border-white flex items-center justify-center hover:scale-105 transition-transform">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
-                <span className="text-xl" role="img" aria-label="folder">📁</span>
-              </div>
-            </div>
-
-            {/* Main Interactive Artwork Card */}
-            <div className="relative w-full max-w-[320px] aspect-4/3 bg-white/90 backdrop-blur-md rounded-3xl p-5 shadow-2xl shadow-blue-500/10 border-2 border-white flex flex-col items-center justify-center text-center overflow-hidden">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30 text-white mb-3 animate-pulse">
-                <Atom className="w-11 h-11" />
-              </div>
-
-              <h2 className="text-base font-black text-slate-800">
-                AtomLab Interactive Studio
-              </h2>
-              <p className="text-[11px] text-slate-500 font-medium mt-1">
-                Laboratorium visual submikroskopik dan evaluasi otomatis
-              </p>
-
-              {/* Accept / Connect Pill Button */}
-              <div className="mt-4 px-4 py-1.5 rounded-full bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-500/25 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-                <span>Terhubung ke Sesi Pembelajaran</span>
-              </div>
-            </div>
           </div>
 
-          {/* Bottom Trust & Feature Highlights */}
-          <div className="relative z-10 pt-2 border-t border-slate-200/60 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">✓</span>
-              <span>5 Model Pembelajaran Runtut Sesuai Fase E Kurikulum Merdeka</span>
+          {/* Bottom Trust & Educational Highlights */}
+          <div className="relative z-10 pt-2 border-t border-rose-200/60 flex flex-col gap-1.5">
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-700">
+              <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-bold">✓</span>
+              <span>Laboratorium Interaktif &amp; Simulasi Nyata</span>
             </div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold">✓</span>
-              <span>Uji Pemahaman Konsep 10 Soal Berbasis Investigasi Ilmiah</span>
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-700">
+              <span className="w-4 h-4 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-[9px] font-bold">✓</span>
+              <span>10 Kuis Evaluasi Mencegah Miskonsepsi Kimia</span>
             </div>
           </div>
         </div>
@@ -548,6 +553,38 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
             {/* ============================================================== */}
             {mode === 'register' && (
               <form onSubmit={handleRegister} className="flex flex-col gap-3.5">
+                
+                {/* Pilihan Peran: Siswa vs Guru */}
+                <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => setRole('student')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      role === 'student'
+                        ? 'bg-white text-blue-700 shadow-2xs border border-slate-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>👤 Mode Siswa</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('teacher')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      role === 'teacher'
+                        ? 'bg-indigo-600 text-white shadow-2xs font-extrabold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🎓 Mode Guru</span>
+                  </button>
+                </div>
+
+                {role === 'teacher' && (
+                  <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 text-xs font-medium leading-relaxed">
+                    💡 <strong>Mode Guru:</strong> Anda akan memiliki hak akses penuh untuk mengelola materi (CRUD) dan butir soal kuis tanpa pembatasan Lock Materi.
+                  </div>
+                )}
                 
                 {/* Nama Lengkap */}
                 <div className="relative">
@@ -920,6 +957,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                   setGoogleNameInput('Budi Santoso')
                   setGoogleEmailInput('budi.santoso@gmail.com')
                   setGoogleClassInput('KIM-X-FASE-E')
+                  setGoogleRole('student')
                 }}
                 className={`p-3 rounded-2xl border text-left flex items-center justify-between cursor-pointer transition ${
                   googleEmailInput === 'budi.santoso@gmail.com'
@@ -936,7 +974,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                     <div className="text-[10px] text-slate-500">budi.santoso@gmail.com</div>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">
                   Siswa
                 </span>
               </button>
@@ -947,6 +985,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                   setGoogleNameInput('Dra. Siti Nurhaliza')
                   setGoogleEmailInput('siti.nurhaliza.guru@gmail.com')
                   setGoogleClassInput('GURU-KIMIA-X')
+                  setGoogleRole('teacher')
                 }}
                 className={`p-3 rounded-2xl border text-left flex items-center justify-between cursor-pointer transition ${
                   googleEmailInput === 'siti.nurhaliza.guru@gmail.com'
