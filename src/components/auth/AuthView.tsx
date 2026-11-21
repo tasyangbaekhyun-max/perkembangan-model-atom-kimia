@@ -9,7 +9,7 @@ import {
   Sparkles,
   X
 } from 'lucide-react'
-import { authService, type UserAccess } from '../../lib'
+import { authService, type UserAccess, isFirebaseConfigured, firebaseConfig } from '../../lib'
 
 type AuthMode = 'login' | 'register' | 'forgot'
 
@@ -162,10 +162,16 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
     setIsLoading(true)
     try {
       const res = await authService.requestPasswordReset(email)
-      if (res.success && res.token) {
-        setResetToken(res.token)
-        setForgotStep(2)
-        setSuccessMessage(`Kode pemulihan: ${res.token} (Telah dikirim ke ${email}).`)
+      if (res.success) {
+        if (res.token) {
+          // Mode kode token lokal
+          setResetToken(res.token)
+          setForgotStep(2)
+          setSuccessMessage(res.message || `Kode pemulihan: ${res.token} (Telah dikirim ke ${email}).`)
+        } else {
+          // Mode live Firebase (link reset dikirim ke email asli pengguna)
+          setSuccessMessage(res.message || `Tautan pemulihan kata sandi telah dikirim ke email ${email}. Silakan cek kotak masuk Anda.`)
+        }
       } else {
         setErrorMessage(res.error || 'Email tidak ditemukan dalam sistem AtomLab.')
       }
@@ -218,6 +224,23 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
   }
 
   // 5. GOOGLE AUTH HANDLER
+  const handleGoogleAuth = async () => {
+    resetMessages()
+    if (isFirebaseConfigured()) {
+      setIsLoading(true)
+      try {
+        const access = await authService.loginWithGoogle()
+        onSuccessLogin(access)
+      } catch (err: any) {
+        setErrorMessage(err?.message || 'Gagal masuk dengan akun Google.')
+      } finally {
+        setIsLoading(false)
+      }
+    } else {
+      setShowGoogleModal(true)
+    }
+  }
+
   const handleGoogleSubmit = async () => {
     setIsLoading(true)
     setShowGoogleModal(false)
@@ -230,8 +253,8 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
         rememberDevice,
       })
       onSuccessLogin(access)
-    } catch {
-      setErrorMessage('Gagal masuk dengan akun Google.')
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Gagal masuk dengan akun Google.')
     } finally {
       setIsLoading(false)
     }
@@ -362,6 +385,21 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
               </button>
             </div>
 
+            {/* Status Koneksi Firebase Live */}
+            <div className="mb-4">
+              {isFirebaseConfigured() ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Firebase Terhubung (Live Auth & Firestore)</span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span>Mode Demo Lokal (Isi .env.local untuk Live Firebase)</span>
+                </div>
+              )}
+            </div>
+
             {/* Greeting Heading & Subtitle */}
             <div className="mb-6">
               <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
@@ -414,7 +452,21 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
             {errorMessage && (
               <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2.5 animate-shake">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
-                <span className="leading-relaxed">{errorMessage}</span>
+                <div className="flex-1 space-y-2">
+                  <p className="leading-relaxed">{errorMessage}</p>
+                  {errorMessage.includes('Firebase Console') && (
+                    <div>
+                      <a
+                        href={`https://console.firebase.google.com/project/${firebaseConfig.projectId || 'proyek-cad24'}/authentication/providers`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 text-white font-medium hover:bg-rose-700 transition shadow-sm text-xs cursor-pointer"
+                      >
+                        <span>Buka Firebase Console Proyek Ini ↗</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -755,9 +807,9 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                 {/* Google Button (Official 4-color) */}
                 <button
                   type="button"
-                  onClick={() => setShowGoogleModal(true)}
+                  onClick={handleGoogleAuth}
                   className="py-2.5 px-3 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-blue-400 flex items-center justify-center transition cursor-pointer group shadow-2xs"
-                  title="Masuk dengan Google"
+                  title={isFirebaseConfigured() ? 'Masuk dengan Google (Firebase)' : 'Masuk dengan Google (Akun Demo)'}
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
