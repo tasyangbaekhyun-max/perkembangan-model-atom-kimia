@@ -5,8 +5,6 @@ import {
   HelpCircle,
   Plus,
   Trash2,
-  CheckCircle2,
-  ListFilter,
   Check
 } from 'lucide-react'
 import type {

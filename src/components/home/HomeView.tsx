@@ -1,26 +1,22 @@
 import {
   Clock,
   Layers,
-  FlaskConical,
-  HelpCircle,
   Sparkles,
   ArrowRight,
   Eye,
   Atom,
   BookOpen,
   Award,
-  Compass,
   BookMarked,
   ExternalLink,
   Library,
-  CheckCircle2,
-  User
+  CheckCircle2
 } from 'lucide-react'
 
 interface HomeViewProps {
   onNavigateToTimeline: () => void
   onNavigateToComparison: () => void
-  onNavigateToSimulation: (modelId?: string) => void
+  onNavigateToSimulation?: (modelId?: string) => void
   onNavigateToQuiz: () => void
   onOpenAuth?: () => void
   isAuthenticated?: boolean
@@ -29,8 +25,7 @@ interface HomeViewProps {
 export function HomeView({
   onNavigateToTimeline,
   onNavigateToComparison,
-  onNavigateToSimulation,
-  onNavigateToQuiz,
+  onNavigateToQuiz: _onNavigateToQuiz,
   onOpenAuth,
   isAuthenticated = false,
 }: HomeViewProps) {
@@ -103,224 +98,6 @@ export function HomeView({
               Tabel Perbandingan
             </button>
           </div>
-        </div>
-      </section>
-
-      {/* Alur Pembelajaran Runtut (Pedagogical Flow Explanation) */}
-      <section className="bg-white border-2 border-indigo-100 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col gap-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold mb-1">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Alur Pembelajaran Terbimbing Siswa
-            </div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tight">
-              Belajar Runtut &amp; Fokus: Bebas dari Tampilan Bertumpuk
-            </h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Setiap model atom disajikan berurutan melalui 4 tahapan investigasi terpadu agar siswa dapat menyerap konsep secara mendalam:
-            </p>
-          </div>
-
-          <button
-            onClick={onNavigateToTimeline}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer self-start sm:self-auto shrink-0"
-          >
-            <span>Mulai dari Tahap 1</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900">
-                Tahap 1
-              </span>
-              <User className="w-4 h-4 text-amber-600" />
-            </div>
-            <h4 className="text-xs font-black text-slate-900 uppercase">Konteks &amp; Tokoh</h4>
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Memahami biografi tokoh, masalah sejarah, dan teka-teki ilmiah yang memicu perlunya penyelidikan.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-600 text-white">
-                Tahap 2
-              </span>
-              <FlaskConical className="w-4 h-4 text-indigo-600" />
-            </div>
-            <h4 className="text-xs font-black text-slate-900 uppercase">Laboratorium Virtual</h4>
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Eksperimen pembuktian sains berlayar penuh tanpa teks berdesakan, lengkap dengan panduan observasi mandiri.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-purple-100 text-purple-900">
-                Tahap 3
-              </span>
-              <Atom className="w-4 h-4 text-purple-600" />
-            </div>
-            <h4 className="text-xs font-black text-slate-900 uppercase">Konsep &amp; 3 Tingkat Kimia</h4>
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Memahami model atom temuan melalui 3 Representasi Johnstone (Makroskopik, Submikroskopik, Simbolik) &amp; postulat kimia.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900">
-                Tahap 4
-              </span>
-              <HelpCircle className="w-4 h-4 text-emerald-600" />
-            </div>
-            <h4 className="text-xs font-black text-slate-900 uppercase">Keterbatasan &amp; Refleksi</h4>
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Menemukan kelemahan model, uji cek pemahaman instan, dan menyeberang ke model atom ilmuwan berikutnya.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Exploration Grid - Clean, Colorful & Modular */}
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <Compass className="w-5 h-5 text-indigo-600" /> Menu Utama Pembelajaran
-            </h2>
-            <p className="text-xs text-slate-500 font-medium">Pilih modul pembelajaran yang ingin Anda jelajahi terlebih dahulu</p>
-          </div>
-          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 self-start sm:self-auto">
-            4 Pilihan Modul
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          {/* Card 1: Main Timeline (Primary) */}
-          <div
-            onClick={onNavigateToTimeline}
-            className="group relative p-6 rounded-3xl bg-gradient-to-br from-indigo-50/80 via-white to-blue-50/80 border-2 border-indigo-200/90 hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 cursor-pointer flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 group-hover:scale-110 transition-transform">
-                  <Clock className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
-                  ★ Paling Disarankan
-                </span>
-              </div>
-
-              <h3 className="text-lg font-black text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors">
-                Tahapan Kronologis Perkembangan Model Atom
-              </h3>
-
-              <p className="text-xs text-slate-600 leading-relaxed font-medium mb-4">
-                Pelajari 6 tonggak evolusi model atom (Democritus, Dalton, Thomson, Rutherford, Bohr, Mekanika Kuantum) lengkap dengan simulator visual otentik, aturan kimia asli, dan 3 level representasi.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t border-indigo-100/80 flex items-center justify-between text-xs font-bold text-indigo-600 group-hover:translate-x-1 transition-transform">
-              <span>Mulai Telusuri Garis Waktu</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-
-          {/* Card 2: Model Comparison */}
-          <div
-            onClick={onNavigateToComparison}
-            className="group relative p-6 rounded-3xl bg-gradient-to-br from-purple-50/80 via-white to-pink-50/80 border-2 border-purple-200/90 hover:border-purple-400 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 cursor-pointer flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center text-white shadow-md shadow-purple-500/25 group-hover:scale-110 transition-transform">
-                  <Layers className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-purple-100 text-purple-900 border border-purple-200">
-                  Komparasi Berdampingan
-                </span>
-              </div>
-
-              <h3 className="text-lg font-black text-slate-900 mb-2 group-hover:text-purple-600 transition-colors">
-                Tabel Perbandingan Antarmodel
-              </h3>
-
-              <p className="text-xs text-slate-600 leading-relaxed font-medium mb-4">
-                Bandingkan gagasan penemu, bentuk fisik atom, kelebihan konseptual, dan anomali/keterbatasan yang mendorong lahirnya teori model atom berikutnya dalam satu tabel ringkas.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t border-purple-100/80 flex items-center justify-between text-xs font-bold text-purple-600 group-hover:translate-x-1 transition-transform">
-              <span>Buka Tabel Perbandingan</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-
-          {/* Card 3: Interactive Classic Lab */}
-          <div
-            onClick={() => onNavigateToSimulation('thomson')}
-            className="group relative p-6 rounded-3xl bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/80 border-2 border-emerald-200/90 hover:border-emerald-400 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/25 group-hover:scale-110 transition-transform">
-                  <FlaskConical className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-200">
-                  Praktikum Virtual
-                </span>
-              </div>
-
-              <h3 className="text-lg font-black text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors">
-                Laboratorium Eksperimen Klasik
-              </h3>
-
-              <p className="text-xs text-slate-600 leading-relaxed font-medium mb-4">
-                Coba langsung eksperimen penting dalam sejarah kimia: pembelokan sinar katoda (Thomson CRT), hamburan sinar alfa lempeng emas (Rutherford), dan spektrum garis emisi Bohr.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t border-emerald-100/80 flex items-center justify-between text-xs font-bold text-emerald-600 group-hover:translate-x-1 transition-transform">
-              <span>Masuk Laboratorium Simulasi</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-
-          {/* Card 4: Diagnostic Quiz */}
-          <div
-            onClick={onNavigateToQuiz}
-            className="group relative p-6 rounded-3xl bg-gradient-to-br from-amber-50/80 via-white to-orange-50/80 border-2 border-amber-200/90 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 cursor-pointer flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-md shadow-amber-500/25 group-hover:scale-110 transition-transform">
-                  <HelpCircle className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-                  Deteksi Miskonsepsi
-                </span>
-              </div>
-
-              <h3 className="text-lg font-black text-slate-900 mb-2 group-hover:text-amber-700 transition-colors">
-                Tes Diagnostik & Kuis Evaluasi
-              </h3>
-
-              <p className="text-xs text-slate-600 leading-relaxed font-medium mb-4">
-                Uji pemahaman konseptual Anda untuk memastikan tidak ada miskonsepsi seperti anggapan elektron berputar seperti planet pada model atom modern.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t border-amber-100/80 flex items-center justify-between text-xs font-bold text-amber-700 group-hover:translate-x-1 transition-transform">
-              <span>Mulai Uji Pemahaman</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-
         </div>
       </section>
 

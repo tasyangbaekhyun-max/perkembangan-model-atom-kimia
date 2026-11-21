@@ -24,6 +24,8 @@ import {
   UploadCloud,
   RefreshCw,
   LogIn,
+  Award,
+  Printer,
   Plus,
   Edit3,
   GraduationCap
@@ -307,6 +309,10 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
         currentQuestionIndex: prev.currentQuestionIndex + 1,
       }))
       setSelectedDragItem(null)
+    } else {
+      // Jika di soal terakhir (soal ke-25) dan klik "Selesai & Lihat Pencapaian"
+      // Scroll langsung ke atas menuju Sertifikat & Hasil Pencapaian
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [currentQuestionIndex, totalQuestions, updateSession])
 
@@ -535,7 +541,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
     <div className={`flex flex-col ${embedded ? 'gap-4' : 'gap-6'} w-full animate-fade-in`}>
       
       {/* ---------------- 1. TOP HEADER & GUEST WORKSPACE BAR ---------------- */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 print:hidden">
         <div className="flex items-center gap-3">
           {onBackToHome && (
             <button
@@ -624,9 +630,67 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
         </div>
       </div>
 
+      {/* ── BAR KHUSUS GURU: Akses Pengelolaan Soal Evaluasi (CRUD) ──────────── */}
+      {isTeacher && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-purple-500/10 border-2 border-indigo-200 rounded-3xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3 animate-fade-in print:hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-md shadow-indigo-600/20 shrink-0">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-slate-900 text-sm">Mode Guru Aktif • Pengelolaan Evaluasi Kuis</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+                  Akses Penuh CRUD
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Bebas menambah, mengedit teks kimia berformat, menghapus butir soal, atau mengatur kunci jawaban. Lock soal dilewati secara otomatis.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+            <button
+              onClick={handleOpenCreateQuestion}
+              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 flex items-center gap-1.5 cursor-pointer transition active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Soal Baru</span>
+            </button>
+
+            <button
+              onClick={handleOpenEditQuestion}
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-95"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Edit Soal Ini</span>
+            </button>
+
+            <button
+              onClick={() => setIsDeleteModalOpen(true)}
+              disabled={quizQuestions.length <= 1}
+              className="px-3 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Hapus butir soal ini dari evaluasi"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Hapus Soal</span>
+            </button>
+
+            <button
+              onClick={handleResetDefaultQuestions}
+              className="px-2.5 py-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-bold text-xs cursor-pointer"
+              title="Reset ke 10 soal bawaan"
+            >
+              Reset Bawaan
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ---------------- NOTICE: BELAJAR TANPA LOGIN TETAP BERFUNGSI ---------------- */}
       {!userAccess.isAuthenticated && (
-        <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
+        <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs print:hidden">
           <div className="flex items-center gap-2">
             <Compass className="w-4 h-4 text-indigo-600 shrink-0" />
             <span className="text-indigo-950 font-medium">
@@ -647,7 +711,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
 
       {/* ---------------- 2. STORAGE HEALTH & WARNING NOTICE ---------------- */}
       {storageWarning && (
-        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex items-start gap-2.5 shadow-xs">
+        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex items-start gap-2.5 shadow-xs print:hidden">
           <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <span className="font-bold block">Peringatan Penyimpanan Lokal (Lampiran B):</span>
@@ -685,106 +749,263 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
       )}
 
       {/* ---------------- 4. COMPLETION CELEBRATION & BAB 4 DATABASE CONTRACT ---------------- */}
-      {session.isCompleted && (
-        <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border-2 border-emerald-300 shadow-md flex flex-col gap-5 animate-fade-in">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 text-3xl font-black shrink-0">
-                🏆
+      {session.isCompleted && (() => {
+        // Analisis Sertifikat & Diagnostik Konsep Lemah
+        const completedFirstAttemptCount = Object.values(session.itemResponses).filter(
+          (r) => r.attemptsCount === 1 && r.isCorrect
+        ).length
+        const totalIncorrectFirstTry = totalQuestions - completedFirstAttemptCount
+        const scorePercent = session.firstAttemptScore
+
+        // Identifikasi Konsep yang Lemah (pengerjaan > 1 kali karena salah di percobaan pertama)
+        const weakConceptItems = QUIZ_QUESTIONS.filter((q) => {
+          const resp = session.itemResponses[q.id]
+          if (!resp) return false
+          // Lemah jika percobaan > 1 atau pernah salah
+          return resp.attemptsCount > 1 || (resp.firstAnswer !== undefined && !resp.isCorrect)
+        })
+
+        const studentName = userAccess.isAuthenticated
+          ? userAccess.name
+          : (userAccess.alias || 'Peserta Didik (Tamu)')
+        const studentClass = userAccess.isAuthenticated
+          ? (userAccess.classCode || 'KIM-X-FASE-E')
+          : 'Kelas X - Fase E Kimia SMA'
+
+        const currentDateFormatted = new Date(session.completedAt || 0).toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })
+
+        return (
+          <div className="flex flex-col gap-6 animate-fade-in">
+            {/* Sertifikat Kelulusan & Penguasaan Konsep */}
+            <div
+              id="quiz-certificate-card"
+              className="relative p-6 sm:p-10 rounded-3xl bg-gradient-to-br from-amber-50/60 via-white to-sky-50/60 border-4 border-amber-300 shadow-xl overflow-hidden print:m-0 print:p-8 print:border-4 print:border-amber-400 print:shadow-none print:bg-white"
+            >
+              {/* Ornamen Sudut Sertifikat */}
+              <div className="absolute top-2 left-2 w-8 h-8 border-t-2 border-l-2 border-amber-500 rounded-tl-lg pointer-events-none" />
+              <div className="absolute top-2 right-2 w-8 h-8 border-t-2 border-r-2 border-amber-500 rounded-tr-lg pointer-events-none" />
+              <div className="absolute bottom-2 left-2 w-8 h-8 border-b-2 border-l-2 border-amber-500 rounded-bl-lg pointer-events-none" />
+              <div className="absolute bottom-2 right-2 w-8 h-8 border-b-2 border-r-2 border-amber-500 rounded-br-lg pointer-events-none" />
+
+              {/* Watermark Logo Kimia */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-4 pointer-events-none">
+                <span className="text-[200px] font-black select-none">⚛</span>
               </div>
-              <div>
-                <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Selamat! Seluruh Soal Telah Tuntas</span>
-                <h3 className="text-xl font-black text-slate-900">
-                  Master Konsep Struktur Model Atom
+
+              {/* Header Sertifikat */}
+              <div className="relative text-center flex flex-col items-center">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-100/90 text-amber-900 border border-amber-300 font-extrabold text-[11px] uppercase tracking-widest shadow-2xs mb-2">
+                  <Award className="w-4 h-4 text-amber-600" />
+                  <span>Sertifikat Hasil Asesmen Diagnostik &amp; Penguasaan Konsep</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
+                  Perkembangan Model Teori Atom
+                </h2>
+                <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">
+                  Media Pembelajaran Interaktif Kimia Fase E SMA • Berdasarkan Kurikulum Merdeka
+                </p>
+                <div className="w-32 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent mt-3" />
+              </div>
+
+              {/* Isi Penerima Sertifikat */}
+              <div className="relative my-6 text-center">
+                <p className="text-xs text-slate-500 font-medium">Diberikan dengan bangga kepada:</p>
+                <h3 className="text-2xl sm:text-3xl font-extrabold text-indigo-950 mt-1 underline decoration-amber-400 decoration-2 underline-offset-6">
+                  {studentName}
                 </h3>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
-                    Skor Percobaan Pertama: {session.firstAttemptScore} / 100
-                  </span>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-900 border border-sky-300">
-                    Skor Penguasaan Tuntas: 100 / 100
+                <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-700 border border-slate-200">
+                  <span>Kelas / Rombel:</span>
+                  <span className="text-indigo-700 font-mono">{studentClass}</span>
+                </div>
+              </div>
+
+              {/* Ringkasan Skor & Statistik */}
+              <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-3 my-6">
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs text-center">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Total Soal</span>
+                  <div className="text-2xl font-black text-slate-900 mt-0.5">{totalQuestions}</div>
+                  <span className="text-[10px] text-slate-400">Soal Objektif</span>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-2xs text-center">
+                  <span className="text-[10px] font-bold uppercase text-emerald-800 tracking-wider">Benar (Coba 1)</span>
+                  <div className="text-2xl font-black text-emerald-700 mt-0.5">{completedFirstAttemptCount}</div>
+                  <span className="text-[10px] text-emerald-600 font-medium">Langsung Tepat</span>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 shadow-2xs text-center">
+                  <span className="text-[10px] font-bold uppercase text-rose-800 tracking-wider">Salah (Coba 1)</span>
+                  <div className="text-2xl font-black text-rose-700 mt-0.5">{totalIncorrectFirstTry}</div>
+                  <span className="text-[10px] text-rose-600 font-medium">Perlu Remediasi</span>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 shadow-2xs text-center">
+                  <span className="text-[10px] font-bold uppercase text-indigo-800 tracking-wider">% Nilai Murni</span>
+                  <div className="text-2xl font-black text-indigo-700 mt-0.5">{scorePercent}%</div>
+                  <span className="text-[10px] text-indigo-600 font-bold">
+                    {scorePercent >= 80 ? 'Sangat Baik' : scorePercent >= 65 ? 'Baik' : 'Butuh Penguatan'}
                   </span>
                 </div>
               </div>
+
+              {/* Deteksi Diagnostik: Konsep-Konsep yang Masih Lemah */}
+              <div className="relative p-4 sm:p-5 rounded-2xl bg-white/95 border border-slate-200 shadow-2xs mb-6">
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+                    <span className="p-1 rounded-md bg-amber-100 text-amber-800">🔍</span>
+                    <span>Diagnostik Konsep yang Masih Lemah (Dideteksi &gt;1 Kali Pengerjaan)</span>
+                  </h4>
+                  <span className="text-[11px] font-bold text-slate-500">
+                    {weakConceptItems.length === 0 ? 'Semua Dikuasai Langsung' : `${weakConceptItems.length} Konsep Perlu Remediasi`}
+                  </span>
+                </div>
+
+                {weakConceptItems.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {weakConceptItems.map((q, idx) => {
+                      const resp = session.itemResponses[q.id]
+                      return (
+                        <div
+                          key={q.id}
+                          className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 flex items-start gap-2.5 text-xs text-slate-800"
+                        >
+                          <span className="px-2 py-0.5 rounded-md bg-amber-200 text-amber-900 font-mono font-bold shrink-0 text-[10px]">
+                            Soal #{idx + 1}
+                          </span>
+                          <div className="flex-1">
+                            <strong className="text-amber-950 block">
+                              {q.conceptTag || q.title}
+                            </strong>
+                            <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-2">
+                              {q.title}
+                            </p>
+                            <span className="inline-block mt-1 text-[10px] font-bold text-rose-700">
+                              {resp?.attemptsCount ?? 2}x Percobaan dijawab
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center text-xs text-emerald-900 font-bold flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Luar biasa istimewa! Seluruh 25 konsep berhasil kamu jawab dengan tepat pada percobaan pertama.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Tanggal & Footer Pengesahan */}
+              <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 text-xs text-slate-500">
+                <div>
+                  <p>Tanggal Asesmen: <strong className="text-slate-700">{currentDateFormatted}</strong></p>
+                  <p className="text-[10px] text-slate-400 font-mono">ID Validasi Percobaan: {session.attemptId}</p>
+                </div>
+                <div className="text-center sm:text-right">
+                  <p className="font-bold text-slate-800">AtomLab Pembelajaran Interaktif</p>
+                  <p className="text-[10px] text-slate-500">Fase E • Validasi Kompetensi Model Atom</p>
+                </div>
+              </div>
+
+              {/* Tombol Cetak / PDF (Disembunyikan saat mencetak) */}
+              <div className="relative mt-6 flex items-center justify-end gap-2.5 print:hidden">
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 flex items-center gap-2 cursor-pointer transition active:scale-98"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Cetak / Simpan PDF Sertifikat</span>
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={handleStartNewAttempt}
-                className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-2 cursor-pointer"
-                title="Mulai percobaan kuis baru dengan ID baru"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Percobaan Baru (ID Baru)</span>
-              </button>
-            </div>
-          </div>
+            {/* Panel Pilihan Ulang & Manajemen */}
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col gap-5 print:hidden">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Sesi Asesmen Telah Lengkap Dikerjakan
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Anda dapat mencetak sertifikat di atas, menyimpan salinan data riset, atau memulai sesi percobaan baru.
+                  </p>
+                </div>
+                <button
+                  onClick={handleStartNewAttempt}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-2 cursor-pointer"
+                  title="Mulai percobaan kuis baru dengan ID baru"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Mulai Percobaan Baru (ID Baru)</span>
+                </button>
+              </div>
 
-          {/* STATUS PENYIMPANAN & PENGIRIMAN DATA RISET (Bab 4) */}
-          <div className="p-4 bg-white/90 rounded-2xl border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-slate-700">Status Data:</span>
-              {submissionStatus === 'lokal' && (
-                <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-800 font-bold border border-slate-300 flex items-center gap-1.5">
-                  <Database className="w-3.5 h-3.5 text-slate-600" />
-                  <span>lokal (Tersimpan di Perangkat)</span>
-                </span>
-              )}
-              {submissionStatus === 'menunggu kirim' && (
-                <span className="px-3 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold border border-amber-300 animate-pulse flex items-center gap-1.5">
-                  <RefreshCw className="w-3.5 h-3.5 text-amber-700 animate-spin" />
-                  <span>menunggu kirim...</span>
-                </span>
-              )}
-              {submissionStatus === 'terkirim' && (
-                <span className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-bold border border-emerald-300 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>terkirim (Tersinkronisasi ke Basis Data)</span>
-                </span>
-              )}
-              {submissionStatus === 'gagal' && (
-                <span className="px-3 py-1 rounded-lg bg-rose-100 text-rose-900 font-bold border border-rose-300 flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-                  <span>gagal (Gagal Terkirim ke Server)</span>
-                </span>
-              )}
-            </div>
-
-            {/* ACTION BUTTONS: Masuk dengan Google, Simpan ke Akun, Coba Kirim Lagi */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {!userAccess.isAuthenticated ? (
-                <>
-                  {onOpenGoogleLogin && (
-                    <button
-                      onClick={onOpenGoogleLogin}
-                      className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <LogIn className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Masuk dengan Google</span>
-                    </button>
+              {/* STATUS PENYIMPANAN & PENGIRIMAN DATA RISET (Bab 4) */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-slate-700">Status Data Riset:</span>
+                  {submissionStatus === 'lokal' && (
+                    <span className="px-3 py-1 rounded-lg bg-slate-200 text-slate-800 font-bold border border-slate-300 flex items-center gap-1.5">
+                      <Database className="w-3.5 h-3.5 text-slate-600" />
+                      <span>lokal (Tersimpan di Perangkat)</span>
+                    </span>
                   )}
-                  <button
-                    onClick={() => {
-                      if (onOpenGoogleLogin) onOpenGoogleLogin()
-                    }}
-                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <UploadCloud className="w-3.5 h-3.5" />
-                    <span>Simpan ke Akun</span>
-                  </button>
-                </>
-              ) : (
-                <>
+                  {submissionStatus === 'menunggu kirim' && (
+                    <span className="px-3 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold border border-amber-300 animate-pulse flex items-center gap-1.5">
+                      <RefreshCw className="w-3.5 h-3.5 text-amber-700 animate-spin" />
+                      <span>menunggu kirim...</span>
+                    </span>
+                  )}
+                  {submissionStatus === 'terkirim' && (
+                    <span className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-bold border border-emerald-300 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>terkirim (Tersinkronisasi ke Basis Data)</span>
+                    </span>
+                  )}
                   {submissionStatus === 'gagal' && (
-                    <button
-                      onClick={() => handleSendOrRetry(true)}
-                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
-                      title="Mencoba mengirim ulang dengan mempertahankan ID percobaan yang sama"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Coba Kirim Lagi</span>
-                    </button>
+                    <span className="px-3 py-1 rounded-lg bg-rose-100 text-rose-900 font-bold border border-rose-300 flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                      <span>gagal (Gagal Terkirim ke Server)</span>
+                    </span>
                   )}
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {!userAccess.isAuthenticated ? (
+                    <>
+                      {onOpenGoogleLogin && (
+                        <button
+                          onClick={onOpenGoogleLogin}
+                          className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <LogIn className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Masuk dengan Google</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (onOpenGoogleLogin) onOpenGoogleLogin()
+                        }}
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>Simpan ke Akun</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {submissionStatus === 'gagal' && (
+                        <button
+                          onClick={() => handleSendOrRetry(true)}
+                          className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+                          title="Mencoba mengirim ulang dengan mempertahankan ID percobaan yang sama"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Coba Kirim Lagi</span>
+                        </button>
+                      )}
 
                   {(submissionStatus === 'lokal' || submissionStatus === 'terkirim') && (
                     <button
@@ -800,78 +1021,17 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
             </div>
           </div>
         </div>
-      )}
+      </div>
+    )
+  })()}
 
-      {/* ---------------- TEACHER CONTROL BAR (CRUD SOAL) ---------------- */}
-      {isTeacher && (
-        <div className="p-3.5 bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white rounded-3xl shadow-md border border-indigo-700/60 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-amber-300">
-              <GraduationCap className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xs tracking-tight">Mode Guru: Bank Soal & Evaluasi</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold">
-                  Bypass Lock Soal
-                </span>
-              </div>
-              <p className="text-[11px] text-indigo-200">
-                Akses ke seluruh soal terbuka. Anda dapat membuat, mengedit, atau menghapus butir soal pembelajaran.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleOpenCreateQuestion}
-              className="px-3.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-98"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Soal Baru</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleOpenEditQuestion}
-              className="px-3.5 py-1.5 rounded-xl bg-white text-indigo-900 hover:bg-indigo-50 font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-98"
-            >
-              <Edit3 className="w-3.5 h-3.5 text-indigo-700" />
-              <span>Edit Soal Ini</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsDeleteModalOpen(true)}
-              disabled={quizQuestions.length <= 1}
-              className="px-3 py-1.5 rounded-xl bg-rose-500/80 hover:bg-rose-600 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition active:scale-98"
-              title="Hapus butir soal saat ini"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Hapus</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleResetDefaultQuestions}
-              className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition"
-              title="Reset ke bank soal standar bawaan"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Reset</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Notifikasi Aksi Berhasil */}
-      {actionSuccessMessage && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2 animate-fade-in">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>{actionSuccessMessage}</span>
-        </div>
-      )}
+  {/* Notifikasi Aksi Berhasil */}
+  {actionSuccessMessage && (
+    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2 animate-fade-in">
+      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+      <span>{actionSuccessMessage}</span>
+    </div>
+  )}
 
       {/* ---------------- 5. MASTERY QUESTION PALETTE ---------------- */}
       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
@@ -1411,7 +1571,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
               >
                 <span>
                   {currentQuestionIndex === totalQuestions - 1
-                    ? 'Selesai &amp; Lihat Pencapaian 🏆'
+                    ? 'Selesai & Lihat Pencapaian 🏆'
                     : 'Soal Selanjutnya'}
                 </span>
                 <ArrowRight className="w-4 h-4" />

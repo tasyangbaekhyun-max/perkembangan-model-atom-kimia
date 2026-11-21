@@ -240,7 +240,7 @@ export default function App() {
               }`}
             >
               <HelpCircle className="w-3.5 h-3.5" />
-              <span>Uji Konsep (10 Soal)</span>
+              <span>Uji Konsep (25 Soal)</span>
             </button>
           </nav>
 
