@@ -1,10 +1,10 @@
 /**
  * AUTH SERVICE & SDK SESSION LISTENER ADAPTER
  * Mengelola autentikasi:
- * - Registrasi akun baru (Email, Password, Konfirmasi Password)
- * - Masuk dengan Email terdaftar
- * - Masuk / Daftar dengan Akun Google
- * - Pemulihan dan Reset Kata Sandi (Lupa Password)
+ * - Registrasi akun baru (Email, Password, Konfirmasi Password) -> Terhubung ke Firebase Auth & Firestore
+ * - Masuk dengan Email terdaftar -> Terhubung ke Firebase Auth
+ * - Masuk / Daftar dengan Akun Google -> Terhubung ke Firebase Google Auth Popup
+ * - Pemulihan dan Reset Kata Sandi (Lupa Password) -> Terhubung ke Firebase sendPasswordResetEmail
  * - Sesi Tamu (Belajar tanpa login tetap berfungsi)
  * - getAccess() mengembalikan alias akun kelas
  * - onAuthStateChanged() untuk pembaruan reaktif ID akun aktif
@@ -13,6 +13,29 @@
 
 import type { UserAccess } from './types'
 import { getOrCreateGuestId } from '../services/quizStorage'
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  sendPasswordResetEmail,
+  updateProfile,
+  onAuthStateChanged as onFirebaseAuthStateChanged,
+  type User as FirebaseUser,
+} from 'firebase/auth'
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from 'firebase/firestore'
+import {
+  auth,
+  db,
+  googleProvider,
+  isFirebaseConfigured,
+  mapFirebaseAuthError,
+} from './firebase'
 
 const AUTH_STORAGE_KEY = 'atomlab_sdk_auth_session'
 const USERS_STORAGE_KEY = 'atomlab_registered_users'
@@ -39,7 +62,7 @@ export interface RegisteredUser {
   classCode?: string
   schoolName?: string
   createdAt: string
-  provider: 'local' | 'google'
+  provider: 'local' | 'google' | 'firebase-email'
 }
 
 export type RegisteredAccount = RegisteredUser
@@ -104,6 +127,70 @@ class AuthService {
   constructor() {
     this.initUsersFromStorage()
     this.initSessionFromStorage()
+    this.initFirebaseListener()
+  }
+
+  /**
+   * Listener otomatis Firebase Auth untuk mempertahankan status login pengguna
+   */
+  private initFirebaseListener(): void {
+    if (!isFirebaseConfigured() || !auth) return
+
+    try {
+      onFirebaseAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
+        if (fbUser) {
+          try {
+            let name = fbUser.displayName || fbUser.email?.split('@')[0] || 'Siswa Kimia'
+            let role: 'student' | 'teacher' | 'admin' = 'student'
+            let classCode = 'KIM-X-FASE-E'
+            let schoolName = 'SMA Negeri 1 Jakarta'
+
+            if (db) {
+              const userSnap = await getDoc(doc(db, 'users', fbUser.uid))
+              if (userSnap.exists()) {
+                const data = userSnap.data()
+                if (data.name) name = data.name
+                if (data.role) role = data.role
+                if (data.classCode) classCode = data.classCode
+                if (data.schoolName) schoolName = data.schoolName
+              }
+            }
+
+            const token = await fbUser.getIdToken().catch(() => `fb_token_${Date.now()}`)
+            const session: StoredSession = {
+              userId: fbUser.uid,
+              name,
+              email: fbUser.email || undefined,
+              role,
+              classCode,
+              schoolName,
+              token,
+              expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+              rememberDevice: true,
+            }
+
+            this.currentSession = session
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+            }
+            this.notifyListeners()
+          } catch (err) {
+            console.warn('[Firebase] Gagal sinkron status sesi login:', err)
+          }
+        } else {
+          // Jika sebelumnya ada sesi Firebase yang aktif dan user telah logout di Firebase
+          if (this.currentSession && !this.currentSession.userId.startsWith('usr_')) {
+            this.currentSession = null
+            if (typeof window !== 'undefined') {
+              window.localStorage.removeItem(AUTH_STORAGE_KEY)
+            }
+            this.notifyListeners()
+          }
+        }
+      })
+    } catch (err) {
+      console.warn('[Firebase] Inisialisasi onFirebaseAuthStateChanged gagal:', err)
+    }
   }
 
   private initUsersFromStorage(): void {
@@ -166,7 +253,6 @@ class AuthService {
       const raw = window.localStorage.getItem(AUTH_STORAGE_KEY)
       if (raw) {
         const parsed = JSON.parse(raw) as StoredSession
-        // Periksa apakah token belum kadaluarsa
         if (new Date(parsed.expiresAt).getTime() > Date.now()) {
           this.currentSession = parsed
         } else {
@@ -240,6 +326,7 @@ class AuthService {
 
   /**
    * Registrasi Akun Baru dengan Email & Password
+   * Terhubung secara nyata ke Firebase Auth & Cloud Firestore jika kredensial diisi.
    */
   public async registerWithEmail(params: {
     name?: string
@@ -251,20 +338,17 @@ class AuthService {
     role?: 'student' | 'teacher' | 'admin'
     rememberDevice?: boolean
   }): Promise<{ success: boolean; error?: string; user?: UserAccess }> {
-    // Simulasi jeda server
-    await new Promise((resolve) => setTimeout(resolve, 450))
-
     const email = params.email.trim().toLowerCase()
     const password = params.password.trim()
     const confirmPassword = params.confirmPassword?.trim()
 
-    // Validasi email
+    // Validasi format email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!email || !emailRegex.test(email)) {
       return { success: false, error: 'Format email tidak valid. Masukkan alamat email yang benar.' }
     }
 
-    // Validasi password
+    // Validasi kata sandi
     if (!password || password.length < 6) {
       return { success: false, error: 'Kata sandi minimal 6 karakter.' }
     }
@@ -273,6 +357,75 @@ class AuthService {
       return { success: false, error: 'Konfirmasi kata sandi tidak cocok.' }
     }
 
+    const derivedName = params.name?.trim() || email.split('@')[0].replace(/[._]/g, ' ')
+    const formattedName = derivedName
+      .split(' ')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+
+    const role = params.role || 'student'
+    const classCode = params.classCode?.trim() || 'KIM-X-FASE-E'
+    const schoolName = params.schoolName?.trim() || 'SMA Negeri 1 Jakarta'
+    const rememberDevice = params.rememberDevice !== false
+
+    // 1. INTEGRASI NYATA KE FIREBASE AUTH & FIRESTORE
+    if (isFirebaseConfigured() && auth) {
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password)
+
+        // Perbarui display name di Firebase Auth profile
+        try {
+          await updateProfile(cred.user, { displayName: formattedName })
+        } catch {
+          // ignore
+        }
+
+        // Simpan data profil pengguna ke Cloud Firestore
+        if (db) {
+          try {
+            await setDoc(doc(db, 'users', cred.user.uid), {
+              id: cred.user.uid,
+              name: formattedName,
+              email,
+              role,
+              classCode,
+              schoolName,
+              createdAt: serverTimestamp(),
+              provider: 'firebase-email',
+            }, { merge: true })
+          } catch (dbErr) {
+            console.warn('[Firebase] Gagal menyimpan data profil ke Firestore:', dbErr)
+          }
+        }
+
+        const sessionDays = rememberDevice ? 30 : 1
+        const token = await cred.user.getIdToken().catch(() => `fb_jwt_${Date.now()}`)
+        const session: StoredSession = {
+          userId: cred.user.uid,
+          name: formattedName,
+          email,
+          role,
+          classCode,
+          schoolName,
+          token,
+          expiresAt: new Date(Date.now() + sessionDays * 24 * 3600 * 1000).toISOString(),
+          rememberDevice,
+        }
+
+        this.currentSession = session
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+        }
+
+        this.notifyListeners()
+        return { success: true, user: this.getAccess() }
+      } catch (err: any) {
+        return { success: false, error: mapFirebaseAuthError(err) }
+      }
+    }
+
+    // 2. FALLBACK LOKAL / DEMO JIKA FIREBASE BELUM DIISI DI .env.local
+    await new Promise((resolve) => setTimeout(resolve, 350))
     const users = this.getRegisteredUsers()
     const existing = users.find((u) => u.email.toLowerCase() === email)
     if (existing) {
@@ -282,14 +435,6 @@ class AuthService {
       }
     }
 
-    // Ekstrak nama default jika tidak diisi
-    const derivedName = params.name?.trim() || email.split('@')[0].replace(/[._]/g, ' ')
-    const formattedName = derivedName
-      .split(' ')
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ')
-
-    const role = params.role || 'student'
     const newUser: RegisteredUser = {
       id: `usr_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`,
       name: formattedName,
@@ -297,8 +442,8 @@ class AuthService {
       password,
       passwordHash: password,
       role,
-      classCode: params.classCode?.trim() || 'KIM-X-FASE-E',
-      schoolName: params.schoolName?.trim() || 'SMA Negeri 1 Jakarta',
+      classCode,
+      schoolName,
       createdAt: new Date().toISOString(),
       provider: 'local',
     }
@@ -306,8 +451,7 @@ class AuthService {
     users.push(newUser)
     this.saveRegisteredUsers(users)
 
-    // Buat sesi aktif
-    const sessionDays = params.rememberDevice !== false ? 30 : 1
+    const sessionDays = rememberDevice ? 30 : 1
     const session: StoredSession = {
       userId: newUser.id,
       name: newUser.name,
@@ -317,14 +461,16 @@ class AuthService {
       schoolName: newUser.schoolName,
       token: `jwt_local_${Date.now()}_${newUser.id}`,
       expiresAt: new Date(Date.now() + sessionDays * 24 * 3600 * 1000).toISOString(),
-      rememberDevice: params.rememberDevice !== false,
+      rememberDevice,
     }
 
     this.currentSession = session
-    try {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
-    } catch {
-      // In-memory fallback
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+      } catch {
+        // ignore
+      }
     }
 
     this.notifyListeners()
@@ -333,14 +479,12 @@ class AuthService {
 
   /**
    * Masuk (Login) dengan Email & Password terdaftar
+   * Terhubung secara nyata ke Firebase Auth jika kredensial diisi.
    */
   public async loginWithEmail(
     paramsOrEmail: { email: string; password: string; rememberDevice?: boolean } | string,
     maybePassword?: string
   ): Promise<{ success: boolean; error?: string; user?: UserAccess }> {
-    // Simulasi jeda server
-    await new Promise((resolve) => setTimeout(resolve, 400))
-
     let email = ''
     let password = ''
     let rememberDevice = true
@@ -361,6 +505,73 @@ class AuthService {
       return { success: false, error: 'Silakan masukkan kata sandi kamu.' }
     }
 
+    // 1. INTEGRASI NYATA KE FIREBASE AUTH
+    if (isFirebaseConfigured() && auth) {
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password)
+
+        let name = cred.user.displayName || email.split('@')[0]
+        let role: 'student' | 'teacher' | 'admin' = 'student'
+        let classCode = 'KIM-X-FASE-E'
+        let schoolName = 'SMA Negeri 1 Jakarta'
+
+        // Muat data profil dari Cloud Firestore
+        if (db) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', cred.user.uid))
+            if (userDoc.exists()) {
+              const data = userDoc.data()
+              if (data.name) name = data.name
+              if (data.role) role = data.role
+              if (data.classCode) classCode = data.classCode
+              if (data.schoolName) schoolName = data.schoolName
+            } else {
+              // Simpan record dasar jika belum pernah ada
+              await setDoc(doc(db, 'users', cred.user.uid), {
+                id: cred.user.uid,
+                name,
+                email,
+                role,
+                classCode,
+                schoolName,
+                createdAt: serverTimestamp(),
+                lastLoginAt: serverTimestamp(),
+                provider: 'firebase-email',
+              }, { merge: true })
+            }
+          } catch (dbErr) {
+            console.warn('[Firebase] Gagal sinkron Firestore saat login email:', dbErr)
+          }
+        }
+
+        const sessionDays = rememberDevice ? 30 : 1
+        const token = await cred.user.getIdToken().catch(() => `fb_jwt_${Date.now()}`)
+        const session: StoredSession = {
+          userId: cred.user.uid,
+          name,
+          email,
+          role,
+          classCode,
+          schoolName,
+          token,
+          expiresAt: new Date(Date.now() + sessionDays * 24 * 3600 * 1000).toISOString(),
+          rememberDevice,
+        }
+
+        this.currentSession = session
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+        }
+
+        this.notifyListeners()
+        return { success: true, user: this.getAccess() }
+      } catch (err: any) {
+        return { success: false, error: mapFirebaseAuthError(err) }
+      }
+    }
+
+    // 2. FALLBACK LOKAL / DEMO JIKA FIREBASE BELUM DIISI DI .env.local
+    await new Promise((resolve) => setTimeout(resolve, 350))
     const users = this.getRegisteredUsers()
     const user = users.find((u) => u.email.toLowerCase() === email)
 
@@ -393,10 +604,12 @@ class AuthService {
     }
 
     this.currentSession = session
-    try {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
-    } catch {
-      // in-memory fallback
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+      } catch {
+        // ignore
+      }
     }
 
     this.notifyListeners()
@@ -404,7 +617,7 @@ class AuthService {
   }
 
   /**
-   * Permintaan Lupa Kata Sandi (Kirim Kode / Token Verifikasi Reset)
+   * Permintaan Lupa Kata Sandi (Kirim Email Reset Asli via Firebase Auth)
    */
   public async requestPasswordReset(email: string): Promise<{
     success: boolean
@@ -413,18 +626,35 @@ class AuthService {
     token?: string
     emailExists?: boolean
   }> {
-    await new Promise((resolve) => setTimeout(resolve, 400))
-
     const cleanEmail = email.trim().toLowerCase()
     if (!cleanEmail) {
       return {
         success: false,
         error: 'Silakan masukkan alamat email terdaftar Anda.',
         emailExists: false,
-        message: 'Silakan masukkan alamat email terdaftar Anda.',
       }
     }
 
+    // 1. INTEGRASI NYATA KE FIREBASE AUTH (Kirim link reset ke email pengguna)
+    if (isFirebaseConfigured() && auth) {
+      try {
+        await sendPasswordResetEmail(auth, cleanEmail)
+        return {
+          success: true,
+          message: `Tautan pengaturan ulang kata sandi telah dikirim ke ${cleanEmail}. Silakan periksa kotak masuk atau spam email Anda.`,
+          emailExists: true,
+        }
+      } catch (err: any) {
+        return {
+          success: false,
+          error: mapFirebaseAuthError(err),
+          emailExists: false,
+        }
+      }
+    }
+
+    // 2. FALLBACK LOKAL / DEMO:
+    await new Promise((resolve) => setTimeout(resolve, 350))
     const users = this.getRegisteredUsers()
     const user = users.find((u) => u.email.toLowerCase() === cleanEmail)
 
@@ -433,11 +663,9 @@ class AuthService {
         success: false,
         error: 'Email ini tidak terdaftar di sistem AtomLab. Silakan periksa kembali.',
         emailExists: false,
-        message: 'Email ini tidak terdaftar di sistem AtomLab. Silakan periksa kembali.',
       }
     }
 
-    // Generate kode simulasi reset
     const token = `ATOM-${Math.floor(1000 + Math.random() * 9000)}`
     return {
       success: true,
@@ -448,7 +676,7 @@ class AuthService {
   }
 
   /**
-   * Reset / Perbarui Kata Sandi Pengguna
+   * Reset / Perbarui Kata Sandi Pengguna (Mode Lokal)
    */
   public async resetPassword(
     paramsOrEmail:
@@ -461,7 +689,7 @@ class AuthService {
       | string,
     maybeNewPassword?: string
   ): Promise<{ success: boolean; error?: string; message?: string }> {
-    await new Promise((resolve) => setTimeout(resolve, 450))
+    await new Promise((resolve) => setTimeout(resolve, 350))
 
     let cleanEmail = ''
     let newPassword = ''
@@ -492,7 +720,7 @@ class AuthService {
     const userIndex = users.findIndex((u) => u.email.toLowerCase() === cleanEmail)
 
     if (userIndex === -1) {
-      return { success: false, error: 'Pengguna tidak ditemukan.' }
+      return { success: false, error: 'Pengguna tidak ditemukan dalam sistem.' }
     }
 
     users[userIndex].password = newPassword
@@ -507,7 +735,7 @@ class AuthService {
 
   /**
    * Masuk atau Daftar dengan Google
-   * Mensimulasikan autentikasi OAuth Google resmi untuk platform pendidikan
+   * Terhubung secara nyata ke Google Popup Firebase Auth jika kredensial diisi.
    */
   public async loginWithGoogle(options?: {
     customName?: string
@@ -516,7 +744,74 @@ class AuthService {
     schoolName?: string
     rememberDevice?: boolean
   }): Promise<UserAccess> {
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    // 1. INTEGRASI NYATA KE GOOGLE AUTH FIREBASE
+    if (isFirebaseConfigured() && auth && googleProvider) {
+      try {
+        const cred = await signInWithPopup(auth, googleProvider)
+        const user = cred.user
+
+        let name = user.displayName || options?.customName || 'Siswa Google'
+        let email = user.email || ''
+        let role: 'student' | 'teacher' | 'admin' = 'student'
+        let classCode = options?.classCode || 'KIM-X-FASE-E'
+        let schoolName = options?.schoolName || 'SMA Negeri 1 Jakarta'
+
+        // Muat / simpan pengguna ke Cloud Firestore
+        if (db) {
+          try {
+            const userSnap = await getDoc(doc(db, 'users', user.uid))
+            if (userSnap.exists()) {
+              const data = userSnap.data()
+              if (data.name) name = data.name
+              if (data.role) role = data.role
+              if (data.classCode) classCode = data.classCode
+              if (data.schoolName) schoolName = data.schoolName
+            } else {
+              await setDoc(doc(db, 'users', user.uid), {
+                id: user.uid,
+                name,
+                email,
+                role,
+                classCode,
+                schoolName,
+                createdAt: serverTimestamp(),
+                lastLoginAt: serverTimestamp(),
+                provider: 'google',
+              }, { merge: true })
+            }
+          } catch (dbErr) {
+            console.warn('[Firebase] Gagal sinkron Firestore pengguna Google:', dbErr)
+          }
+        }
+
+        const sessionDays = options?.rememberDevice !== false ? 30 : 1
+        const token = await user.getIdToken().catch(() => `fb_jwt_${Date.now()}`)
+        const session: StoredSession = {
+          userId: user.uid,
+          name,
+          email,
+          role,
+          classCode,
+          schoolName,
+          token,
+          expiresAt: new Date(Date.now() + sessionDays * 24 * 3600 * 1000).toISOString(),
+          rememberDevice: options?.rememberDevice !== false,
+        }
+
+        this.currentSession = session
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+        }
+
+        this.notifyListeners()
+        return this.getAccess()
+      } catch (err: any) {
+        throw new Error(mapFirebaseAuthError(err))
+      }
+    }
+
+    // 2. FALLBACK LOKAL / DEMO JIKA FIREBASE BELUM DIISI DI .env.local
+    await new Promise((resolve) => setTimeout(resolve, 450))
 
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase()
     const name = options?.customName || 'Budi Santoso'
@@ -526,7 +821,6 @@ class AuthService {
     const classCode = options?.classCode || 'KIM-X-FASE-E'
     const schoolName = options?.schoolName || 'SMA Negeri 1 Jakarta'
 
-    // Daftarkan ke pengguna terdaftar jika belum ada
     const users = this.getRegisteredUsers()
     let user = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
     if (!user) {
@@ -560,40 +854,50 @@ class AuthService {
     }
 
     this.currentSession = session
-    try {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
-    } catch {
-      // In-memory fallback
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+      } catch {
+        // ignore
+      }
     }
 
-    // PENTING: Jangan menyalin token/email ke log!
     this.notifyListeners()
     return this.getAccess()
   }
 
   /**
    * Keluar dari Akun (Logout)
-   * Mendukung opsi pembersihan perangkat bersama
+   * Terhubung ke signOut(auth) Firebase dan pembersihan sesi lokal
    */
   public logout(clearDeviceData = false): void {
+    if (isFirebaseConfigured() && auth) {
+      try {
+        signOut(auth).catch(() => {})
+      } catch {
+        // ignore
+      }
+    }
+
     this.currentSession = null
     try {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY)
-      if (clearDeviceData) {
-        // Bersihkan partisi akun yang baru saja logout
-        const keysToRemove: string[] = []
-        for (let i = 0; i < window.localStorage.length; i++) {
-          const key = window.localStorage.key(i)
-          if (key && key.startsWith('atomlab_')) {
-            keysToRemove.push(key)
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(AUTH_STORAGE_KEY)
+        if (clearDeviceData) {
+          const keysToRemove: string[] = []
+          for (let i = 0; i < window.localStorage.length; i++) {
+            const key = window.localStorage.key(i)
+            if (key && key.startsWith('atomlab_')) {
+              keysToRemove.push(key)
+            }
           }
-        }
-        for (const k of keysToRemove) {
-          window.localStorage.removeItem(k)
+          for (const k of keysToRemove) {
+            window.localStorage.removeItem(k)
+          }
         }
       }
     } catch {
-      // Abaikan galat penyimpanan
+      // ignore
     }
 
     this.notifyListeners()

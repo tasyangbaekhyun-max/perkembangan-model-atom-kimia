@@ -93,13 +93,17 @@ export default function App() {
 
   // Masuk dengan Google dari Modal
   const handleLoginWithGoogle = async () => {
-    const access = await authService.loginWithGoogle({
-      customName: studentNameInput.trim() || 'Siswa Kimia',
-      classCode: classCodeInput.trim() || 'KIM-X-FASE-E',
-      schoolName: 'SMA Negeri 1 Jakarta',
-    })
-    setShowGoogleLoginModal(false)
-    handleAuthSuccess(access)
+    try {
+      const access = await authService.loginWithGoogle({
+        customName: studentNameInput.trim() || 'Siswa Kimia',
+        classCode: classCodeInput.trim() || 'KIM-X-FASE-E',
+        schoolName: 'SMA Negeri 1 Jakarta',
+      })
+      setShowGoogleLoginModal(false)
+      handleAuthSuccess(access)
+    } catch (err) {
+      console.warn('Gagal masuk Google:', err)
+    }
   }
 
   // Resolusi Hasil Tamu: Tautkan ke Akun Saya
