@@ -12,8 +12,48 @@
 
 import { authService } from '../lib/authService'
 import { db, isFirebaseConfigured } from '../lib/firebase'
-import { doc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, getDocs, collection, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import { ATOM_MODELS } from '../data/atomModels'
+
+/**
+ * Memformat berbagai format tanggal/timestamp Firebase ke waktu standar Indonesia (e.g. "22 Nov 2026, 17:15")
+ */
+export function formatIndonesianDateTime(dateInput: any): string {
+  if (!dateInput) return '-'
+  try {
+    let d: Date
+    if (typeof dateInput === 'object' && dateInput !== null) {
+      if (typeof dateInput.toDate === 'function') {
+        d = dateInput.toDate()
+      } else if (typeof dateInput.seconds === 'number') {
+        d = new Date(dateInput.seconds * 1000)
+      } else if (dateInput instanceof Date) {
+        d = dateInput
+      } else {
+        d = new Date(dateInput)
+      }
+    } else if (typeof dateInput === 'number') {
+      d = new Date(dateInput)
+    } else if (typeof dateInput === 'string') {
+      d = new Date(dateInput)
+    } else {
+      return '-'
+    }
+
+    if (isNaN(d.getTime())) return '-'
+
+    return new Intl.DateTimeFormat('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(d).replace(/\./g, ':')
+  } catch {
+    return '-'
+  }
+}
 
 export type AtomicStageNumber = 1 | 2 | 3 | 4
 
@@ -433,7 +473,9 @@ class LearningProgressService {
   }
 
   /**
-   * Memuat data progres dari Firebase untuk Mode Guru jika daring
+   * Memuat data progres lengkap seluruh siswa langsung dari Firebase (Firestore) untuk Mode Guru.
+   * Menggabungkan koleksi 'student_learning_progress', 'users', dan 'quiz_submissions',
+   * serta menangani dengan aman field yang belum lengkap pada akun siswa.
    */
   public async fetchRemoteProgressForTeacher(): Promise<StudentProgressSummary[]> {
     if (!isFirebaseConfigured() || !db) {
@@ -441,50 +483,187 @@ class LearningProgressService {
     }
 
     try {
-      const snap = await getDocs(collection(db, 'student_learning_progress'))
-      if (!snap.empty) {
-        const remoteList: StudentProgressSummary[] = []
+      const studentMap = new Map<string, StudentProgressSummary>()
+
+      // 1. Ambil data dari koleksi student_learning_progress
+      try {
+        const snap = await getDocs(collection(db, 'student_learning_progress'))
         snap.forEach((d) => {
           const data = d.data() as any
-          remoteList.push({
-            userId: data.userId || d.id,
-            name: data.name || 'Siswa',
-            email: data.email,
-            alias: data.alias || data.name,
-            classCode: data.classCode || 'KIM-X-FASE-E',
-            totalXP: data.totalXP || 0,
-            completedStages: Array.isArray(data.completedStages) ? data.completedStages : [],
-            completedModelsCount: data.completedModelsCount || 0,
-            lastCompletedAt: data.lastCompletedAt || new Date().toISOString(),
-            quizScore: typeof data.quizScore === 'number' ? data.quizScore : null,
-            quizAttemptId: data.quizAttemptId,
-            quizCompletedAt: data.quizCompletedAt,
-            quizStatus: 'terkirim',
-          })
-        })
+          const stages: string[] = Array.isArray(data.completedStages) ? data.completedStages : []
+          const totalXP = typeof data.totalXP === 'number' && data.totalXP > 0
+            ? data.totalXP 
+            : this.calculateTotalXP(stages)
+          const completedModelsCount = typeof data.completedModelsCount === 'number' && data.completedModelsCount > 0
+            ? data.completedModelsCount
+            : this.countCompletedModels(stages)
 
-        // Gabungkan dengan registri lokal
-        const localList = this.getAllStudentsProgress()
-        for (const rem of remoteList) {
-          const idx = localList.findIndex((l) => l.userId === rem.userId)
-          if (idx >= 0) {
-            localList[idx] = { ...localList[idx], ...rem }
-          } else {
-            localList.push(rem)
+          let lastCompletedAt = new Date().toISOString()
+          if (data.lastCompletedAt && typeof data.lastCompletedAt === 'string') {
+            lastCompletedAt = data.lastCompletedAt
+          } else if (data.firebaseRecordedAt) {
+            const dt = typeof data.firebaseRecordedAt.toDate === 'function' 
+              ? data.firebaseRecordedAt.toDate() 
+              : new Date(data.firebaseRecordedAt.seconds * 1000)
+            lastCompletedAt = dt.toISOString()
           }
-        }
 
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(CLASS_REGISTRY_KEY, JSON.stringify(localList))
-        }
+          const student: StudentProgressSummary = {
+            userId: data.userId || d.id,
+            name: data.name || data.alias || 'Siswa',
+            email: data.email || undefined,
+            alias: data.alias || data.name || 'Siswa',
+            classCode: data.classCode || 'KIM-X-FASE-E',
+            totalXP,
+            completedStages: stages,
+            completedModelsCount,
+            lastCompletedAt,
+            quizScore: typeof data.quizScore === 'number' ? data.quizScore : null,
+            quizAttemptId: data.quizAttemptId || null,
+            quizCompletedAt: data.quizCompletedAt || null,
+            quizStatus: typeof data.quizScore === 'number' ? 'terkirim' : 'belum kuis',
+          }
 
-        return localList
+          studentMap.set(student.userId, student)
+        })
+      } catch (err) {
+        console.warn('[Firebase] Gagal membaca koleksi student_learning_progress:', err)
       }
+
+      // 2. Ambil dari koleksi users untuk mencatat akun siswa terdaftar yang belum memulai eksplorasi
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'))
+        usersSnap.forEach((ud) => {
+          const udata = ud.data() as any
+          // Lewati akun berstatus guru
+          if (udata.role === 'teacher') return
+
+          const uid = ud.id
+          if (!studentMap.has(uid)) {
+            let userCreatedStr = new Date().toISOString()
+            if (udata.createdAt) {
+              const dt = typeof udata.createdAt.toDate === 'function'
+                ? udata.createdAt.toDate()
+                : new Date(udata.createdAt.seconds * 1000)
+              userCreatedStr = dt.toISOString()
+            }
+
+            studentMap.set(uid, {
+              userId: uid,
+              name: udata.name || 'Siswa',
+              email: udata.email || undefined,
+              alias: udata.name || 'Siswa',
+              classCode: udata.classCode || 'KIM-X-FASE-E',
+              totalXP: 0,
+              completedStages: [],
+              completedModelsCount: 0,
+              lastCompletedAt: userCreatedStr,
+              quizScore: null,
+              quizAttemptId: null,
+              quizCompletedAt: null,
+              quizStatus: 'belum kuis',
+            })
+          } else {
+            // Lengkapi data jika sebelumnya kosong di student_learning_progress
+            const existing = studentMap.get(uid)!
+            if (!existing.email && udata.email) existing.email = udata.email
+            if ((!existing.name || existing.name === 'Siswa') && udata.name) existing.name = udata.name
+            if ((!existing.classCode || existing.classCode === 'KIM-X-FASE-E') && udata.classCode) {
+              existing.classCode = udata.classCode
+            }
+          }
+        })
+      } catch (err) {
+        console.warn('[Firebase] Catatan pembacaan users Firestore:', err)
+      }
+
+      // 3. Ambil dari koleksi quiz_submissions untuk melengkapi nilai kuis siswa
+      try {
+        const quizSnap = await getDocs(collection(db, 'quiz_submissions'))
+        quizSnap.forEach((qd) => {
+          const qdata = qd.data() as any
+          const score = typeof qdata.finalScore === 'number' ? qdata.finalScore : null
+          const email = (qdata.studentEmail || '').toLowerCase().trim()
+          const name = (qdata.studentName || '').toLowerCase().trim()
+
+          if (score !== null) {
+            for (const s of studentMap.values()) {
+              const sEmail = (s.email || '').toLowerCase().trim()
+              const sName = (s.name || '').toLowerCase().trim()
+
+              if (
+                (email && sEmail && sEmail === email) ||
+                (name && sName && sName === name) ||
+                (qdata.userId && s.userId === qdata.userId)
+              ) {
+                if (s.quizScore === null || score > (s.quizScore || 0)) {
+                  s.quizScore = score
+                  s.quizAttemptId = qdata.attemptId || qd.id
+                  s.quizCompletedAt = qdata.submittedAt || qdata.clientRecordedAt || new Date().toISOString()
+                  s.quizStatus = 'terkirim'
+                }
+                break
+              }
+            }
+          }
+        })
+      } catch (err) {
+        console.warn('[Firebase] Catatan pembacaan quiz_submissions Firestore:', err)
+      }
+
+      // 4. Gabungkan dengan registri lokal/demo
+      const remoteList = Array.from(studentMap.values())
+      const localList = this.getAllStudentsProgress()
+
+      for (const rem of remoteList) {
+        const idx = localList.findIndex((l) => l.userId === rem.userId)
+        if (idx >= 0) {
+          localList[idx] = { ...localList[idx], ...rem }
+        } else {
+          localList.push(rem)
+        }
+      }
+
+      // Perbarui registri lokal agar tetap sinkron jika offline sewaktu-waktu
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(CLASS_REGISTRY_KEY, JSON.stringify(localList))
+      }
+
+      return localList
     } catch (err) {
       console.warn('[Firebase] Gagal mengambil progres siswa dari Firestore:', err)
     }
 
     return this.getAllStudentsProgress()
+  }
+
+  /**
+   * Berlangganan (Subscribe) perubahan real-time ke koleksi Firestore untuk Mode Guru
+   */
+  public subscribeToRemoteProgressForTeacher(
+    onUpdate: (students: StudentProgressSummary[]) => void
+  ): () => void {
+    if (!isFirebaseConfigured() || !db) {
+      onUpdate(this.getAllStudentsProgress())
+      return () => {}
+    }
+
+    try {
+      const unsub = onSnapshot(
+        collection(db, 'student_learning_progress'),
+        async () => {
+          const freshList = await this.fetchRemoteProgressForTeacher()
+          onUpdate(freshList)
+        },
+        (err) => {
+          console.warn('[Firebase] Error listener real-time progress siswa:', err)
+          onUpdate(this.getAllStudentsProgress())
+        }
+      )
+      return unsub
+    } catch {
+      return () => {}
+    }
   }
 
   public subscribe(listener: ProgressListener): () => void {
