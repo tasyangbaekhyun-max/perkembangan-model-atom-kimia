@@ -33,6 +33,46 @@
   animation: spinReverse 8s linear infinite;
 }
 
+@keyframes electricJitter {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  20% { transform: translate(-2px, 1.5px) rotate(-1deg); }
+  40% { transform: translate(2px, -1.5px) rotate(1deg); }
+  60% { transform: translate(-1.5px, -1px) rotate(-0.5deg); }
+  80% { transform: translate(1.5px, 2px) rotate(0.5deg); }
+}
+
+@keyframes electricFlash {
+  0%, 100% { opacity: 0; }
+  15%, 55%, 85% { opacity: 0.85; }
+  35%, 70% { opacity: 0.25; }
+}
+
+@keyframes chargeFloat {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-8px) scale(1.12); }
+}
+
+@keyframes chargeFloatReverse {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(8px) scale(1.12); }
+}
+
+.animate-electric-jitter {
+  animation: electricJitter 0.12s ease-in-out infinite;
+}
+
+.animate-electric-flash {
+  animation: electricFlash 0.35s ease-in-out infinite;
+}
+
+.animate-charge-float {
+  animation: chargeFloat 1.2s ease-in-out infinite;
+}
+
+.animate-charge-float-reverse {
+  animation: chargeFloatReverse 1.2s ease-in-out infinite;
+}
+
 @media print {
   @page {
     size: A4 portrait;
