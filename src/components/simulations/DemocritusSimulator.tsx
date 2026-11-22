@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Scissors,
   RotateCcw,
@@ -75,13 +75,26 @@ const GOLD_STAGES: GoldStage[] = [
   },
 ]
 
-export function DemocritusSimulator() {
+export function DemocritusSimulator({ onComplete, isCompleted }: { onComplete?: () => void; isCompleted?: boolean }) {
   const [stageIndex, setStageIndex] = useState<number>(0)
   const [bounceEffect, setBounceEffect] = useState<boolean>(false)
+  const [hasTriedCut, setHasTriedCut] = useState<boolean>(() => Boolean(isCompleted))
+  const onCompleteCalledRef = useRef<boolean>(false)
 
   const maxStage = GOLD_STAGES.length - 1
   const currentStage = GOLD_STAGES[stageIndex]
   const isAtomos = stageIndex === maxStage
+  const hasReachedAtomos = isAtomos || Boolean(isCompleted)
+
+  // Fire onComplete when both reaching Atomos AND testing cut on Atomos
+  useEffect(() => {
+    if ((hasReachedAtomos && hasTriedCut) || isCompleted) {
+      if (!onCompleteCalledRef.current && !isCompleted) {
+        onCompleteCalledRef.current = true
+        onComplete?.()
+      }
+    }
+  }, [hasReachedAtomos, hasTriedCut, isCompleted, onComplete])
 
   const handleNextStage = () => {
     if (stageIndex < maxStage) {
@@ -105,6 +118,7 @@ export function DemocritusSimulator() {
   // Trigger bounce effect when trying to cut the uncuttable Atomos
   const handleTryCutAtomos = () => {
     setBounceEffect(true)
+    setHasTriedCut(true)
     setTimeout(() => {
       setBounceEffect(false)
     }, 1200)
@@ -317,6 +331,42 @@ export function DemocritusSimulator() {
           </p>
         </div>
 
+      </div>
+
+      {/* Checklist Aksi Wajib Laboratorium */}
+      <div className={`p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs ${
+        isCompleted || (hasReachedAtomos && hasTriedCut)
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+          : 'bg-amber-50/90 border-amber-300 text-amber-950'
+      }`}>
+        <span className="font-bold text-[11px] uppercase tracking-wider">Aksi Wajib Lab:</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              hasReachedAtomos || isCompleted ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'
+            }`}>
+              {hasReachedAtomos || isCompleted ? '✓' : '1'}
+            </span>
+            <span className={hasReachedAtomos || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Potong emas hingga batas "Atomos" (Level 5)
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              hasTriedCut || isCompleted ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'
+            }`}>
+              {hasTriedCut || isCompleted ? '✓' : '2'}
+            </span>
+            <span className={hasTriedCut || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Uji coba potong unit Atomos ⚔️
+            </span>
+          </div>
+          {(isCompleted || (hasReachedAtomos && hasTriedCut)) && (
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs">
+              +35 XP Tuntas
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Interactive Step Slider (0 to 5) */}

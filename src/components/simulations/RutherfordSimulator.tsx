@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Play, Pause, RotateCcw, AlertTriangle, Radiation } from 'lucide-react'
 
 interface AlphaParticle {
@@ -10,8 +10,10 @@ interface AlphaParticle {
   status: 'flying' | 'straight' | 'deflected' | 'bounced'
 }
 
-export function RutherfordSimulator() {
+export function RutherfordSimulator({ onComplete, isCompleted }: { onComplete?: () => void; isCompleted?: boolean }) {
   const [activeTab, setActiveTab] = useState<'gold_foil' | 'atom_structure' | 'maxwell_paradox'>('gold_foil')
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['gold_foil']))
+  const onCompleteCalledRef = useRef<boolean>(false)
   
   // Gold foil simulation
   const [isRunning, setIsRunning] = useState<boolean>(true)
@@ -21,6 +23,30 @@ export function RutherfordSimulator() {
   // Maxwell paradox state
   const [maxwellCollapsing, setMaxwellCollapsing] = useState<boolean>(false)
   const [electronRadius, setElectronRadius] = useState<number>(75)
+
+  // Helper to switch tab and track visited
+  const handleTabChange = (tab: 'gold_foil' | 'atom_structure' | 'maxwell_paradox') => {
+    setActiveTab(tab)
+    setVisitedTabs(prev => {
+      const next = new Set(prev)
+      next.add(tab)
+      return next
+    })
+  }
+
+  // Fire onComplete when all 3 tabs have been visited
+  useEffect(() => {
+    if (
+      visitedTabs.has('gold_foil') &&
+      visitedTabs.has('atom_structure') &&
+      visitedTabs.has('maxwell_paradox') &&
+      !onCompleteCalledRef.current &&
+      !isCompleted
+    ) {
+      onCompleteCalledRef.current = true
+      onComplete?.()
+    }
+  }, [visitedTabs, isCompleted, onComplete])
 
   // Gold foil animation loop
   useEffect(() => {
@@ -111,8 +137,56 @@ export function RutherfordSimulator() {
     return () => clearInterval(interval)
   }, [maxwellCollapsing, activeTab])
 
+  const allTabsVisited = visitedTabs.has('gold_foil') && visitedTabs.has('atom_structure') && visitedTabs.has('maxwell_paradox')
+
   return (
     <div className="flex flex-col gap-4 w-full">
+      {/* Checklist Aksi Wajib Laboratorium */}
+      <div className={`p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs ${
+        isCompleted || allTabsVisited
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+          : 'bg-purple-50/90 border-purple-300 text-purple-950'
+      }`}>
+        <span className="font-bold text-[11px] uppercase tracking-wider">Aksi Wajib Lab:</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              visitedTabs.has('gold_foil') || isCompleted ? 'bg-emerald-600 text-white' : 'bg-purple-200 text-purple-800'
+            }`}>
+              {visitedTabs.has('gold_foil') || isCompleted ? '✓' : '1'}
+            </span>
+            <span className={visitedTabs.has('gold_foil') || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Hamburan Sinar α
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              visitedTabs.has('atom_structure') || isCompleted ? 'bg-emerald-600 text-white' : 'bg-purple-200 text-purple-800'
+            }`}>
+              {visitedTabs.has('atom_structure') || isCompleted ? '✓' : '2'}
+            </span>
+            <span className={visitedTabs.has('atom_structure') || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Skala Inti & Ruang Hampa
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              visitedTabs.has('maxwell_paradox') || isCompleted ? 'bg-emerald-600 text-white' : 'bg-purple-200 text-purple-800'
+            }`}>
+              {visitedTabs.has('maxwell_paradox') || isCompleted ? '✓' : '3'}
+            </span>
+            <span className={visitedTabs.has('maxwell_paradox') || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Uji Paradoks Maxwell
+            </span>
+          </div>
+          {(isCompleted || allTabsVisited) && (
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs">
+              +35 XP Tuntas
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Simulation Screen */}
       <div className="relative w-full h-72 rounded-2xl bg-gradient-to-b from-purple-50/90 via-white to-indigo-50/90 border-2 border-purple-200/80 flex flex-col items-center justify-between p-4 overflow-hidden shadow-inner">
         
@@ -124,7 +198,7 @@ export function RutherfordSimulator() {
 
           <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-purple-200 shadow-xs">
             <button
-              onClick={() => setActiveTab('gold_foil')}
+              onClick={() => handleTabChange('gold_foil')}
               className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition ${
                 activeTab === 'gold_foil' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -132,7 +206,7 @@ export function RutherfordSimulator() {
               Hamburan Sinar α
             </button>
             <button
-              onClick={() => setActiveTab('atom_structure')}
+              onClick={() => handleTabChange('atom_structure')}
               className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition ${
                 activeTab === 'atom_structure' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -141,7 +215,7 @@ export function RutherfordSimulator() {
             </button>
             <button
               onClick={() => {
-                setActiveTab('maxwell_paradox')
+                handleTabChange('maxwell_paradox')
                 setElectronRadius(75)
               }}
               className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition ${

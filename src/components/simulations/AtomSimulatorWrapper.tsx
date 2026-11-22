@@ -10,25 +10,27 @@ import { useState } from 'react'
 
 interface Props {
   model: AtomModel
+  onLabComplete?: () => void
+  isLabCompleted?: boolean
 }
 
-export function AtomSimulatorWrapper({ model }: Props) {
+export function AtomSimulatorWrapper({ model, onLabComplete, isLabCompleted }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const renderSimulator = () => {
     switch (model.id) {
       case 'democritus':
-        return <DemocritusSimulator />
+        return <DemocritusSimulator onComplete={onLabComplete} isCompleted={isLabCompleted} />
       case 'dalton':
-        return <DaltonSimulator />
+        return <DaltonSimulator onComplete={onLabComplete} isCompleted={isLabCompleted} />
       case 'thomson':
-        return <ThomsonSimulator />
+        return <ThomsonSimulator onComplete={onLabComplete} isCompleted={isLabCompleted} />
       case 'rutherford':
-        return <RutherfordSimulator />
+        return <RutherfordSimulator onComplete={onLabComplete} isCompleted={isLabCompleted} />
       case 'bohr':
-        return <BohrSimulator />
+        return <BohrSimulator onComplete={onLabComplete} isCompleted={isLabCompleted} />
       case 'quantum':
-        return <QuantumSimulator />
+        return <QuantumSimulator onComplete={onLabComplete} isCompleted={isLabCompleted} />
       default:
         return (
           <div className="p-8 text-center text-slate-400">

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { AlertTriangle, ChevronRight, ChevronLeft, Zap, FlaskConical, CheckCircle2, Info } from 'lucide-react'
 
 // ─── Thomson's 4-step authentic experiment procedure (1897) ──────────────────
@@ -256,17 +256,70 @@ function PlumPuddingView({ electronCount }: { electronCount: number }) {
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
-export function ThomsonSimulator() {
+export function ThomsonSimulator({ onComplete, isCompleted }: { onComplete?: () => void; isCompleted?: boolean }) {
   const [tab, setTab] = useState<'crt' | 'pudding'>('crt')
   const [step, setStep] = useState<Step>(0)
   const [eStrength, setEStrength] = useState(40)
   const [bStrength, setBStrength] = useState(40)
   const [electronCount, setElectronCount] = useState(6)
+  const [hasExploredField, setHasExploredField] = useState<boolean>(() => Boolean(isCompleted))
+  const [hasReachedBalanced, setHasReachedBalanced] = useState<boolean>(() => Boolean(isCompleted))
+  const onCompleteCalledRef = useRef<boolean>(false)
 
   const info = STEPS[step]
 
+  const changeStep = (newStep: Step) => {
+    setStep(newStep)
+    if (newStep === 1 || newStep === 2) {
+      setHasExploredField(true)
+    }
+    if (newStep === 3) {
+      setHasReachedBalanced(true)
+      if (!onCompleteCalledRef.current && !isCompleted) {
+        onCompleteCalledRef.current = true
+        onComplete?.()
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 w-full">
+
+      {/* Checklist Aksi Wajib Laboratorium */}
+      <div className={`p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs ${
+        isCompleted || hasReachedBalanced
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+          : 'bg-amber-50/90 border-amber-300 text-amber-950'
+      }`}>
+        <span className="font-bold text-[11px] uppercase tracking-wider">Aksi Wajib Lab:</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              hasExploredField || isCompleted ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'
+            }`}>
+              {hasExploredField || isCompleted ? '✓' : '1'}
+            </span>
+            <span className={hasExploredField || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Uji medan listrik (E) atau medan magnet (B)
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              hasReachedBalanced || isCompleted ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'
+            }`}>
+              {hasReachedBalanced || isCompleted ? '✓' : '2'}
+            </span>
+            <span className={hasReachedBalanced || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Capai Langkah 4: E + B Seimbang (Ukur e/m)
+            </span>
+          </div>
+          {(isCompleted || hasReachedBalanced) && (
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs">
+              +35 XP Tuntas
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* ── Tab Bar ── */}
       <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start shadow-xs">
@@ -298,7 +351,7 @@ export function ThomsonSimulator() {
             {STEPS.map((s) => (
               <button
                 key={s.id}
-                onClick={() => setStep(s.id)}
+                onClick={() => changeStep(s.id)}
                 className={`px-3 py-1 rounded-full text-[11px] font-bold border transition cursor-pointer ${
                   step === s.id
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
@@ -419,7 +472,7 @@ export function ThomsonSimulator() {
           {/* Navigation buttons */}
           <div className="flex items-center justify-between gap-2">
             <button
-              onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
+              onClick={() => changeStep(Math.max(0, step - 1) as Step)}
               disabled={step === 0}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition ${
                 step === 0
@@ -431,7 +484,7 @@ export function ThomsonSimulator() {
             </button>
 
             <button
-              onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
+              onClick={() => changeStep(Math.min(3, step + 1) as Step)}
               disabled={step === 3}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition ${
                 step === 3

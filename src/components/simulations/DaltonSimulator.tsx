@@ -24,13 +24,23 @@ interface ReactionDefinition {
   reactants: AtomConfig[]
 }
 
-export function DaltonSimulator() {
+export interface DaltonSimulatorProps {
+  onComplete?: () => void
+  isCompleted?: boolean
+}
+
+export function DaltonSimulator({ onComplete, isCompleted }: DaltonSimulatorProps) {
   const [selectedReaction, setSelectedReaction] = useState<ReactionType>('h2o')
   const [isReacted, setIsReacted] = useState<boolean>(false)
   const [isTestingElectricity, setIsTestingElectricity] = useState<boolean>(false)
   const [showElectricityCard, setShowElectricityCard] = useState<boolean>(false)
 
+  // Melacak penyelesaian 2 aksi wajib lab Dalton
+  const [hasReactedOnce, setHasReactedOnce] = useState<boolean>(() => Boolean(isCompleted))
+  const [hasTestedElectricityOnce, setHasTestedElectricityOnce] = useState<boolean>(() => Boolean(isCompleted))
+
   const timerRef = useRef<number | null>(null)
+  const onCompleteCalledRef = useRef<boolean>(false)
 
   useEffect(() => {
     return () => {
@@ -39,6 +49,14 @@ export function DaltonSimulator() {
       }
     }
   }, [])
+
+  // Fire onComplete when both mandatory lab actions are done (idempotent)
+  useEffect(() => {
+    if (hasReactedOnce && hasTestedElectricityOnce && !onCompleteCalledRef.current && !isCompleted) {
+      onCompleteCalledRef.current = true
+      onComplete?.()
+    }
+  }, [hasReactedOnce, hasTestedElectricityOnce, isCompleted, onComplete])
 
   // Proporsi Jari-Jari Atom Sebenarnya dalam Tabel Periodik:
   // Jari-jari kovalen / van der Waals: H (~37-120 pm) < O (~66-152 pm) < C (~77-170 pm)
@@ -164,6 +182,7 @@ export function DaltonSimulator() {
   const handleTestElectricity = () => {
     setShowElectricityCard(false)
     setIsTestingElectricity(true)
+    setHasTestedElectricityOnce(true)
 
     if (timerRef.current) {
       clearTimeout(timerRef.current)
@@ -180,7 +199,7 @@ export function DaltonSimulator() {
     <div className="flex flex-col gap-4 w-full">
       {/* Simulation Screen */}
       <div className="relative w-full h-80 rounded-2xl bg-gradient-to-b from-sky-50/90 via-white to-blue-50/90 border-2 border-sky-200/80 flex flex-col items-center justify-between p-4 overflow-hidden shadow-inner">
-        
+
         {/* Header Tag */}
         <div className="w-full flex items-center justify-between z-10">
           <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-sky-100 text-sky-800 border border-sky-300 flex items-center gap-1.5 shadow-2xs">
@@ -274,18 +293,16 @@ export function DaltonSimulator() {
               return (
                 <div
                   key={atom.id}
-                  className={`absolute flex flex-col items-center justify-center transition-all duration-700 ease-in-out ${
-                    isTestingElectricity ? 'animate-electric-jitter' : ''
-                  }`}
+                  className={`absolute flex flex-col items-center justify-center transition-all duration-700 ease-in-out ${isTestingElectricity ? 'animate-electric-jitter' : ''
+                    }`}
                   style={{
                     transform: `translate(${pos.x}px, ${pos.y}px)`,
                   }}
                 >
                   {/* 3D-shaded Solid Billiard Ball Sphere (Touching directly without bonds) */}
                   <div
-                    className={`rounded-full bg-gradient-to-br ${atom.color} flex items-center justify-center font-black font-mono transition-transform duration-500 relative select-none ${
-                      isReacted ? 'scale-100' : 'hover:scale-105'
-                    }`}
+                    className={`rounded-full bg-gradient-to-br ${atom.color} flex items-center justify-center font-black font-mono transition-transform duration-500 relative select-none ${isReacted ? 'scale-100' : 'hover:scale-105'
+                      }`}
                     style={{
                       width: `${atom.size}px`,
                       height: `${atom.size}px`,
@@ -306,9 +323,8 @@ export function DaltonSimulator() {
 
                   {/* Mass Label when separated */}
                   <div
-                    className={`absolute -bottom-6 transition-all duration-300 pointer-events-none ${
-                      isReacted ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
-                    }`}
+                    className={`absolute -bottom-6 transition-all duration-300 pointer-events-none ${isReacted ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
+                      }`}
                   >
                     <span className="text-[10px] font-mono font-bold text-slate-700 bg-white/95 px-2 py-0.5 rounded-full border border-slate-200 shadow-2xs whitespace-nowrap">
                       {atom.massLabel}
@@ -390,6 +406,42 @@ export function DaltonSimulator() {
         </div>
       </div>
 
+      {/* Checklist Aksi Wajib Laboratorium */}
+      <div className={`p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs ${
+        isCompleted || (hasReactedOnce && hasTestedElectricityOnce)
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+          : 'bg-amber-50/90 border-amber-300 text-amber-950'
+      }`}>
+        <span className="font-bold text-[11px] uppercase tracking-wider">Aksi Wajib Lab:</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              hasReactedOnce || isCompleted ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'
+            }`}>
+              {hasReactedOnce || isCompleted ? '✓' : '1'}
+            </span>
+            <span className={hasReactedOnce || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Reaksikan jadi senyawa
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              hasTestedElectricityOnce || isCompleted ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'
+            }`}>
+              {hasTestedElectricityOnce || isCompleted ? '✓' : '2'}
+            </span>
+            <span className={hasTestedElectricityOnce || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Uji sifat kelistrikan materi
+            </span>
+          </div>
+          {(isCompleted || (hasReactedOnce && hasTestedElectricityOnce)) && (
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs">
+              +35 XP Tuntas
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Selector and Actions */}
       <div className="flex flex-col gap-2">
         {/* Compound Selector Buttons */}
@@ -402,11 +454,10 @@ export function DaltonSimulator() {
                 setIsReacted(false)
                 setShowElectricityCard(false)
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition border cursor-pointer ${
-                selectedReaction === type
-                  ? 'bg-gradient-to-r from-blue-600 to-sky-600 text-white border-blue-600 shadow-md shadow-blue-500/20'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-              }`}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition border cursor-pointer ${selectedReaction === type
+                ? 'bg-gradient-to-r from-blue-600 to-sky-600 text-white border-blue-600 shadow-md shadow-blue-500/20'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                }`}
             >
               {type === 'h2o' ? 'H₂O (Air)' : type === 'co' ? 'CO (Monoksida)' : 'CO₂ (Dioksida)'}
             </button>
@@ -416,7 +467,11 @@ export function DaltonSimulator() {
         {/* Reaction and Electricity Action Buttons */}
         <div className="grid grid-cols-2 gap-2 mt-1">
           <button
-            onClick={() => setIsReacted(!isReacted)}
+            onClick={() => {
+                const newReacted = !isReacted
+                setIsReacted(newReacted)
+                if (newReacted) setHasReactedOnce(true)
+              }}
             className="py-2.5 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-500 to-blue-600 hover:brightness-105 text-white transition flex items-center justify-center gap-2 shadow-md shadow-sky-500/20 cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isReacted ? 'rotate-180' : ''} transition-transform duration-500`} />

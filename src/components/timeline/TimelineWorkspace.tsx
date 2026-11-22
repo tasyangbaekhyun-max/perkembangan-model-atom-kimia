@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Atom,
   Clock,
@@ -28,7 +28,8 @@ import {
   Trash2,
   GraduationCap,
   Eye,
-  FileText
+  FileText,
+  BarChart3
 } from 'lucide-react'
 import type { AtomModel, ReferenceItem } from '../../types/atom'
 import { ATOM_MODELS } from '../../data/atomModels'
@@ -39,6 +40,14 @@ import { authService, type UserAccess } from '../../lib'
 import { MaterialEditorModal } from '../editor/MaterialEditorModal'
 import { DeleteConfirmationModal } from '../editor/DeleteConfirmationModal'
 import { RichContentRenderer } from '../editor/RichContentRenderer'
+import {
+  learningProgressService,
+  STAGE_XP_CONFIG,
+  TOTAL_MAX_XP,
+  type AtomicStageNumber,
+  type StudentProgressSummary
+} from '../../services/learningProgressService'
+import { TeacherMonitoringModal } from '../teacher/TeacherMonitoringModal'
 
 interface TimelineWorkspaceProps {
   initialModelId?: string
@@ -78,7 +87,32 @@ export function TimelineWorkspace({
   const [isDeleting, setIsDeleting] = useState(false)
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null)
 
-  // Listener untuk perubahan data materi dan status autentikasi
+  // Sistem Poin Belajar (XP) Khusus Mode Siswa
+  const [studentProgress, setStudentProgress] = useState<StudentProgressSummary>(() =>
+    learningProgressService.loadCurrentProgress()
+  )
+  const [xpToast, setXpToast] = useState<{
+    id: number
+    points: number
+    title: string
+    subtitle: string
+  } | null>(null)
+  const [isMonitoringModalOpen, setIsMonitoringModalOpen] = useState(false)
+  const toastTimerRef = useRef<number | null>(null)
+  const toastCounterRef = useRef<number>(0)
+
+  const showXpToast = (points: number, title: string, subtitle: string) => {
+    toastCounterRef.current += 1
+    setXpToast({ id: toastCounterRef.current, points, title, subtitle })
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current)
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setXpToast(null)
+    }, 3500)
+  }
+
+  // Listener untuk perubahan data materi, status autentikasi, dan poin belajar
   useEffect(() => {
     const unsubModels = learningContentService.subscribeModels((updated) => {
       setAtomModels(updated)
@@ -92,9 +126,17 @@ export function TimelineWorkspace({
       setUserAccess(access)
     })
 
+    const unsubXP = learningProgressService.subscribe((updated) => {
+      setStudentProgress(updated)
+    })
+
     return () => {
       unsubModels()
       unsubAuth()
+      unsubXP()
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current)
+      }
     }
   }, [])
 
@@ -106,13 +148,19 @@ export function TimelineWorkspace({
   // In guided mode: active step (1 to 4)
   const [currentStep, setCurrentStep] = useState<LearningStep>('context')
 
-  // Track highest step reached per model (to enforce sequential progress)
-  const [highestStepPerModel, setHighestStepPerModel] = useState<Record<string, number>>({
-    [atomModels[0]?.id || 'democritus']: 0
-  })
-
   // Track which model indices are unlocked (index-based, Democritus = 0 is always unlocked)
-  const [unlockedModelIndex, setUnlockedModelIndex] = useState<number>(0)
+  const [unlockedModelIndex, setUnlockedModelIndex] = useState<number>(() => {
+    let maxUnlocked = 0
+    const models = learningContentService.getAtomModels()
+    for (let i = 0; i < models.length - 1; i++) {
+      if (learningProgressService.isStageCompleted(models[i].id, 4)) {
+        maxUnlocked = Math.max(maxUnlocked, i + 1)
+      } else {
+        break
+      }
+    }
+    return maxUnlocked
+  })
 
   // In split mode: active tab on theory side
   const [splitTab, setSplitTab] = useState<'scientist' | 'overview' | 'rules' | 'representations' | 'references'>('scientist')
@@ -127,6 +175,18 @@ export function TimelineWorkspace({
 
   // Reference modal for current model
   const [showReferenceModal, setShowReferenceModal] = useState<boolean>(false)
+
+  // === Gated XP: Lab completion state (Stage 2) ===
+  const [localLabCompleted, setLocalLabCompleted] = useState<Record<string, boolean>>({})
+  const isLabCompleted = Boolean(
+    learningProgressService.isStageCompleted(selectedModel.id, 2) || localLabCompleted[selectedModel.id]
+  )
+
+  // === Gated XP: Comprehension dialog (Stages 1 & 3) ===
+  const [showComprehensionDialog, setShowComprehensionDialog] = useState<{
+    stage: 1 | 3
+    onConfirm: () => void
+  } | null>(null)
 
   const handleSelectModel = (model: AtomModel) => {
     setSelectedModel(model)
@@ -150,39 +210,29 @@ export function TimelineWorkspace({
   const prevModel = !isFirstModel ? atomModels[currentModelIndex - 1] : null
   const nextModel = !isLastModel ? atomModels[currentModelIndex + 1] : null
 
-  // Helper: get highest step index reached for a given model
-  const getHighestStepIndex = (modelId: string): number => {
-    return highestStepPerModel[modelId] ?? 0
-  }
-
   // Helper: get index of a step in STEP_ORDER
   const getStepIndex = (step: LearningStep): number => STEP_ORDER.indexOf(step)
 
-  // Check if a step is accessible (sequential lock: step 0 always accessible, step N accessible if highest reached >= N)
+  // Check if a step is accessible (sequential lock: step 0 always accessible, step N accessible if previous stage completed)
   // KETENTUAN KHUSUS: Mode Guru TIDAK dikenai Lock Materi dan bebas melompat ke langkah manapun!
   const isStepAccessible = (step: LearningStep): boolean => {
     if (isTeacher) return true
     const stepIdx = getStepIndex(step)
     if (stepIdx <= 0) return true
-    const highestReached = getHighestStepIndex(selectedModel.id)
-    return stepIdx <= highestReached
+    // Tahap 2 terbuka jika Tahap 1 selesai, Tahap 3 terbuka jika Tahap 2 selesai, Tahap 4 terbuka jika Tahap 3 selesai
+    const prevStageNumber = stepIdx as AtomicStageNumber
+    return learningProgressService.isStageCompleted(selectedModel.id, prevStageNumber)
   }
 
-  // Check if a step was already completed (reached)
+  // Check if a step was already completed (awarded)
   const isStepCompleted = (step: LearningStep): boolean => {
-    if (isTeacher) return true
-    const stepIdx = getStepIndex(step)
-    return stepIdx <= getHighestStepIndex(selectedModel.id)
+    const stageNumber = (getStepIndex(step) + 1) as AtomicStageNumber
+    return learningProgressService.isStageCompleted(selectedModel.id, stageNumber)
   }
 
   const handleStepChange = (step: LearningStep) => {
     if (!isStepAccessible(step)) return // block locked steps
     setCurrentStep(step)
-    const stepIdx = getStepIndex(step)
-    setHighestStepPerModel(prev => ({
-      ...prev,
-      [selectedModel.id]: Math.max(prev[selectedModel.id] ?? 0, stepIdx)
-    }))
     const element = document.getElementById('step-content-anchor')
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -190,33 +240,63 @@ export function TimelineWorkspace({
   }
 
   const handleNextStep = () => {
-    let nextStep: LearningStep | null = null
-    let targetStepIdx = 0
-
-    if (currentStep === 'context') {
-      nextStep = 'lab'
-      targetStepIdx = 1
-    } else if (currentStep === 'lab') {
-      nextStep = 'concept'
-      targetStepIdx = 2
-    } else if (currentStep === 'concept') {
-      nextStep = 'evaluation'
-      targetStepIdx = 3
-    }
-
-    if (nextStep) {
-      // Buka kunci dan langsung arahkan ke step berikutnya
-      setHighestStepPerModel(prev => ({
-        ...prev,
-        [selectedModel.id]: Math.max(prev[selectedModel.id] ?? 0, targetStepIdx)
-      }))
+    const advanceToStep = (nextStep: LearningStep) => {
       setCurrentStep(nextStep)
       const element = document.getElementById('step-content-anchor')
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
     }
+
+    if (currentStep === 'context') {
+      // Stage 1: show comprehension dialog if not yet completed; skip if already done
+      if (!isTeacher && !learningProgressService.isStageCompleted(selectedModel.id, 1)) {
+        setShowComprehensionDialog({
+          stage: 1,
+          onConfirm: () => {
+            setShowComprehensionDialog(null)
+            const res = learningProgressService.awardStagePoints(selectedModel.id, 1, selectedModel.name)
+            if (res.added) {
+              showXpToast(res.pointsEarned, 'Tahap 1 Tuntas!', `+${res.pointsEarned} Poin Eksplorasi: Latar Belakang & Tokoh (${selectedModel.name})`)
+            }
+            advanceToStep('lab')
+          }
+        })
+      } else {
+        advanceToStep('lab')
+      }
+    } else if (currentStep === 'lab') {
+      // Stage 2: blocked until lab completed (teacher always bypasses)
+      if (!isTeacher && !isLabCompleted) return
+      advanceToStep('concept')
+    } else if (currentStep === 'concept') {
+      // Stage 3: show comprehension dialog if not yet completed; skip if already done
+      if (!isTeacher && !learningProgressService.isStageCompleted(selectedModel.id, 3)) {
+        setShowComprehensionDialog({
+          stage: 3,
+          onConfirm: () => {
+            setShowComprehensionDialog(null)
+            const res = learningProgressService.awardStagePoints(selectedModel.id, 3, selectedModel.name)
+            if (res.added) {
+              showXpToast(res.pointsEarned, 'Tahap 3 Tuntas!', `+${res.pointsEarned} Poin Eksplorasi: Konsep & Aturan Kimia (${selectedModel.name})`)
+            }
+            advanceToStep('evaluation')
+          }
+        })
+      } else {
+        advanceToStep('evaluation')
+      }
+    }
   }
+
+  // Callback from simulator when all mandatory lab actions are completed
+  const handleLabComplete = useCallback(() => {
+    setLocalLabCompleted(prev => ({ ...prev, [selectedModel.id]: true }))
+    const res = learningProgressService.awardStagePoints(selectedModel.id, 2, selectedModel.name)
+    if (res.added) {
+      showXpToast(res.pointsEarned, 'Tahap 2 Tuntas!', `+${res.pointsEarned} Poin Eksplorasi: Laboratorium Interaktif (${selectedModel.name})`)
+    }
+  }, [selectedModel])
 
   const handlePrevStep = () => {
     if (currentStep === 'evaluation') handleStepChange('concept')
@@ -225,8 +305,9 @@ export function TimelineWorkspace({
   }
 
   const handleGoToNextModel = () => {
-    if (nextModel) {
-      // Unlock the next model
+    // Stage 4 XP is awarded only on correct answer (in handleAnswerSubmit).
+    // This button navigates to next model if unlocked.
+    if (nextModel && (isTeacher || isCurrentModelCompleted())) {
       const nextModelIdx = currentModelIndex + 1
       setUnlockedModelIndex(prev => Math.max(prev, nextModelIdx))
       handleSelectModel(nextModel)
@@ -240,16 +321,22 @@ export function TimelineWorkspace({
   }
 
   // Check if a model (by index) is unlocked/accessible
+  // Model idx is unlocked if previous model completed Stage 4 or within unlockedModelIndex
   // KETENTUAN KHUSUS: Mode Guru TIDAK dikenai pembatasan Lock Materi!
   const isModelUnlocked = (idx: number): boolean => {
     if (isTeacher) return true
+    if (idx === 0) return true
+    const prev = atomModels[idx - 1]
+    if (prev && learningProgressService.isStageCompleted(prev.id, 4)) {
+      return true
+    }
     return idx <= unlockedModelIndex
   }
 
-  // Check if the current model's evaluation step is completed (all 4 steps done)
+  // Check if the current model's evaluation step is completed (Stage 4 done)
   const isCurrentModelCompleted = (): boolean => {
     if (isTeacher) return true
-    return isStepCompleted('evaluation')
+    return learningProgressService.isStageCompleted(selectedModel.id, 4)
   }
 
   // ==========================================
@@ -332,13 +419,46 @@ export function TimelineWorkspace({
       
       {/* ── Top Bar: Back to Home + Breadcrumb & Reference button ──────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <button
-          onClick={onBackToHome}
-          className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs transition border border-slate-200 flex items-center gap-2 shadow-xs cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4 text-indigo-600" />
-          <span>Kembali ke Beranda</span>
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={onBackToHome}
+            className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs transition border border-slate-200 flex items-center gap-2 shadow-xs cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-indigo-600" />
+            <span>Kembali ke Beranda</span>
+          </button>
+
+          {/* Badge Poin Belajar Siswa (XP) Lengkap dengan Progress Bar Kecil (Khusus Mode Siswa / Pratinjau) */}
+          {(!isTeacher || authService.getPreviewRole() === 'student') && (
+            <div
+              className="flex items-center gap-2.5 bg-gradient-to-r from-amber-50 via-amber-100/70 to-yellow-50 border border-amber-300 px-3.5 py-1.5 rounded-2xl shadow-2xs"
+              title={`Total Poin Belajar Anda: ${studentProgress.totalXP} dari ${TOTAL_MAX_XP} XP (${Math.round((studentProgress.totalXP / TOTAL_MAX_XP) * 100)}%)`}
+            >
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 font-black text-xs flex items-center justify-center shadow-xs">
+                ⚡
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900">
+                    Poin Belajar:
+                  </span>
+                  <span className="text-xs font-black font-mono text-slate-900">
+                    {studentProgress.totalXP} / {TOTAL_MAX_XP} XP
+                  </span>
+                </div>
+                {/* Progress bar kecil */}
+                <div className="w-28 sm:w-36 h-1.5 bg-amber-200/80 rounded-full overflow-hidden mt-0.5">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-500 to-yellow-500 transition-all duration-500 rounded-full"
+                    style={{
+                      width: `${Math.min(100, (studentProgress.totalXP / TOTAL_MAX_XP) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -403,7 +523,17 @@ export function TimelineWorkspace({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setIsMonitoringModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md shadow-amber-400/20 flex items-center gap-1.5 cursor-pointer transition active:scale-98"
+                title="Buka panel pemantauan rekapitulasi poin eksplorasi dan skor kuis siswa"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>Pantau Poin Siswa (0–600 XP)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleOpenCreateModal}
@@ -472,7 +602,7 @@ export function TimelineWorkspace({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
           {atomModels.map((model, idx) => {
             const isSelected = selectedModel.id === model.id
-            const isPassed = idx < currentModelIndex
+            const isModelDone = learningProgressService.isStageCompleted(model.id, 4)
             const unlocked = isModelUnlocked(idx)
 
             return (
@@ -480,7 +610,7 @@ export function TimelineWorkspace({
                 key={model.id}
                 onClick={() => { if (unlocked) handleSelectModel(model) }}
                 disabled={!unlocked}
-                title={!unlocked ? `Selesaikan eksplorasi model sebelumnya terlebih dahulu untuk membuka model ini` : undefined}
+                title={!unlocked ? `Selesaikan evaluasi model sebelumnya terlebih dahulu untuk membuka model ini` : undefined}
                 className={`relative p-3 rounded-2xl text-left transition-all duration-200 border flex flex-col justify-between h-28 shadow-xs ${
                   !unlocked
                     ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-70'
@@ -494,14 +624,14 @@ export function TimelineWorkspace({
                     className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-bold flex items-center gap-1 ${
                       isSelected
                         ? model.theme.badgeBg
-                        : isPassed
+                        : isModelDone
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         : !unlocked
                         ? 'bg-slate-200 text-slate-500'
                         : 'bg-slate-100 text-slate-600'
                     }`}
                   >
-                    {isPassed && <Check className="w-2.5 h-2.5" />}
+                    {isModelDone && <Check className="w-2.5 h-2.5 text-emerald-600" />}
                     {!unlocked && <Lock className="w-2.5 h-2.5" />}
                     {idx + 1}. {model.period}
                   </span>
@@ -644,8 +774,8 @@ export function TimelineWorkspace({
                       )}
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span
                           className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-md ${
                             isActive
@@ -657,6 +787,30 @@ export function TimelineWorkspace({
                         >
                           Tahap {step.number}
                         </span>
+
+                        {/* XP Badge per Tahap */}
+                        <span
+                          className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-md ${
+                            learningProgressService.isStageCompleted(
+                              selectedModel.id,
+                              step.number as AtomicStageNumber
+                            )
+                              ? isActive
+                                ? 'bg-emerald-400 text-slate-950 font-black'
+                                : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : isActive
+                              ? 'bg-amber-400 text-slate-950 font-black'
+                              : 'bg-amber-100 text-amber-900 border border-amber-200'
+                          }`}
+                        >
+                          {learningProgressService.isStageCompleted(
+                            selectedModel.id,
+                            step.number as AtomicStageNumber
+                          )
+                            ? `✓ +${STAGE_XP_CONFIG[step.number as AtomicStageNumber].points} XP`
+                            : `+${STAGE_XP_CONFIG[step.number as AtomicStageNumber].points} XP`}
+                        </span>
+
                         {!accessible && (
                           <span className="text-[9px] font-bold text-slate-400 bg-slate-200 px-1 py-0.5 rounded">Terkunci</span>
                         )}
@@ -840,8 +994,33 @@ export function TimelineWorkspace({
 
               {/* Spacious Interactive Laboratory Container (Full Width, No Cramming!) */}
               <div className="bg-white border-2 border-slate-200 rounded-3xl p-5 md:p-8 shadow-sm">
-                <AtomSimulatorWrapper model={selectedModel} />
+                <AtomSimulatorWrapper
+                  model={selectedModel}
+                  onLabComplete={handleLabComplete}
+                  isLabCompleted={isLabCompleted}
+                />
               </div>
+
+              {/* Lab Completion Status Bar */}
+              {!isTeacher && (
+                <div className={`flex items-center gap-3 p-3 rounded-2xl border text-xs font-bold transition-all ${
+                  isLabCompleted
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-amber-50 border-amber-200 text-amber-800'
+                }`}>
+                  {isLabCompleted ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>✅ Semua aksi wajib laboratorium selesai! Kamu mendapat <strong>+35 XP</strong>. Tombol Lanjut terbuka.</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4 text-amber-600 shrink-0 animate-pulse" />
+                      <span>🔒 Selesaikan seluruh aksi wajib di laboratorium di atas untuk membuka Tahap 3 dan mendapat <strong>+35 XP</strong>.</span>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Lab Conclusion Card */}
               <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3.5 shadow-xs">
@@ -870,10 +1049,17 @@ export function TimelineWorkspace({
 
                 <button
                   onClick={handleNextStep}
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 cursor-pointer"
+                  disabled={!isTeacher && !isLabCompleted}
+                  className={`w-full sm:w-auto px-6 py-3 rounded-xl font-black text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-md ${
+                    !isTeacher && !isLabCompleted
+                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/25 cursor-pointer'
+                  }`}
+                  title={!isTeacher && !isLabCompleted ? 'Selesaikan semua aksi wajib di laboratorium terlebih dahulu' : undefined}
                 >
+                  {!isTeacher && !isLabCompleted && <Lock className="w-4 h-4" />}
                   <span>Lanjut ke Tahap 3: Konsep Model &amp; Aturan Kimia</span>
-                  <ArrowRight className="w-4 h-4" />
+                  {(isTeacher || isLabCompleted) && <ArrowRight className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -1081,6 +1267,23 @@ export function TimelineWorkspace({
                   }))
                   if (isCorrect && !answeredQuestions[currentQuestionIndex]) {
                     setQuizScore((prev) => prev + 1)
+                  }
+
+                  // Award Stage 4 XP (+30 XP) ONLY when answer is CORRECT (idempotent)
+                  if (isCorrect && !learningProgressService.isStageCompleted(selectedModel.id, 4)) {
+                    const res = learningProgressService.awardStagePoints(selectedModel.id, 4, selectedModel.name)
+                    if (res.added) {
+                      showXpToast(
+                        res.pointsEarned,
+                        'Tahap 4 Tuntas!',
+                        `+${res.pointsEarned} Poin Eksplorasi: Keterbatasan & Refleksi (${selectedModel.name})`
+                      )
+                      // Auto-unlock next model in the timeline
+                      const nextModelIdx = currentModelIndex + 1
+                      if (nextModelIdx < atomModels.length) {
+                        setUnlockedModelIndex(prev => Math.max(prev, nextModelIdx))
+                      }
+                    }
                   }
                 }
 
@@ -1335,18 +1538,32 @@ export function TimelineWorkspace({
                   {nextModel ? (
                     <button
                       onClick={handleGoToNextModel}
-                      className="px-6 py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm transition flex items-center gap-2 shadow-lg shadow-amber-400/30 cursor-pointer"
+                      disabled={!isTeacher && !isCurrentModelCompleted()}
+                      className={`px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm transition flex items-center gap-2 shadow-lg ${
+                        !isTeacher && !isCurrentModelCompleted()
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                          : 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/30 cursor-pointer'
+                      }`}
+                      title={!isCurrentModelCompleted() ? 'Jawab soal evaluasi dengan benar untuk membuka model selanjutnya' : undefined}
                     >
+                      {!isTeacher && !isCurrentModelCompleted() && <Lock className="w-4 h-4" />}
                       <span>Lanjut ke Model {nextModel.scientist}</span>
-                      <ArrowRight className="w-4 h-4 text-slate-950" />
+                      {(isTeacher || isCurrentModelCompleted()) && <ArrowRight className="w-4 h-4 text-slate-950" />}
                     </button>
                   ) : (
                     <button
-                      onClick={onNavigateToQuiz}
-                      className="px-6 py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs sm:text-sm transition flex items-center gap-2 shadow-lg shadow-emerald-400/30 cursor-pointer"
+                      onClick={() => onNavigateToQuiz()}
+                      disabled={!isTeacher && !isCurrentModelCompleted()}
+                      className={`px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm transition flex items-center gap-2 shadow-lg ${
+                        !isTeacher && !isCurrentModelCompleted()
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                          : 'bg-emerald-400 hover:bg-emerald-300 text-slate-950 shadow-emerald-400/30 cursor-pointer'
+                      }`}
+                      title={!isCurrentModelCompleted() ? 'Jawab soal evaluasi dengan benar untuk menuntaskan model ini' : undefined}
                     >
+                      {!isTeacher && !isCurrentModelCompleted() && <Lock className="w-4 h-4" />}
                       <span>Uji Pemahaman (25 Soal)</span>
-                      <ArrowRight className="w-4 h-4 text-slate-950" />
+                      {(isTeacher || isCurrentModelCompleted()) && <ArrowRight className="w-4 h-4 text-slate-950" />}
                     </button>
                   )}
                 </div>
@@ -1473,7 +1690,11 @@ export function TimelineWorkspace({
           {/* Right Column: Simulator */}
           <div className="lg:col-span-6 flex flex-col gap-4">
             <div className="bg-white border border-slate-200 rounded-3xl p-5 md:p-6 shadow-sm">
-              <AtomSimulatorWrapper model={selectedModel} />
+              <AtomSimulatorWrapper
+                model={selectedModel}
+                onLabComplete={handleLabComplete}
+                isLabCompleted={isLabCompleted}
+              />
             </div>
           </div>
         </section>
@@ -1566,6 +1787,71 @@ export function TimelineWorkspace({
         onCancel={() => setIsDeleteModalOpen(false)}
         isDeleting={isDeleting}
       />
+
+      {/* ── Floating Toast Notifikasi Poin XP Siswa ───────────────────────── */}
+      {xpToast && (
+        <div className="fixed top-5 right-5 z-50 animate-bounce flex items-center gap-3 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-slate-950 px-4 py-3 rounded-2xl shadow-xl shadow-amber-500/30 border-2 border-yellow-200">
+          <div className="w-9 h-9 rounded-xl bg-slate-950 text-amber-400 flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
+            +{xpToast.points}
+          </div>
+          <div>
+            <div className="text-xs font-black tracking-tight text-slate-950 flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+              <span>+{xpToast.points} Poin Eksplorasi!</span>
+            </div>
+            <div className="text-[11px] font-bold text-slate-800">
+              {xpToast.subtitle}
+            </div>
+          </div>
+          <button
+            onClick={() => setXpToast(null)}
+            className="ml-2 text-slate-800 hover:text-slate-950 text-xs font-bold p-1 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ── Modal Dasbor Pemantauan Siswa (Mode Guru) ─────────────────────── */}
+      <TeacherMonitoringModal
+        isOpen={isMonitoringModalOpen}
+        onClose={() => setIsMonitoringModalOpen(false)}
+      />
+
+      {/* ── Dialog Konfirmasi Pemahaman (Tahap 1 & 3) ─────────────────────── */}
+      {showComprehensionDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-100 flex items-center justify-center shrink-0">
+                <HelpCircle className="w-5 h-5 text-indigo-600" />
+              </div>
+              <h4 className="font-black text-sm text-slate-900">Konfirmasi Pemahaman</h4>
+            </div>
+            <p className="text-sm text-slate-700 leading-relaxed">
+              Apakah kamu yakin sudah <strong>membaca dan memahami</strong> materi pada tahap ini?
+            </p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+              💡 Setelah konfirmasi, kamu akan mendapatkan{' '}
+              <strong>+{STAGE_XP_CONFIG[showComprehensionDialog.stage].points} Poin Eksplorasi</strong>.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowComprehensionDialog(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm transition cursor-pointer"
+              >
+                Belum, Baca Lagi
+              </button>
+              <button
+                onClick={showComprehensionDialog.onConfirm}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition cursor-pointer"
+              >
+                Ya, Saya Paham & Lanjut
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

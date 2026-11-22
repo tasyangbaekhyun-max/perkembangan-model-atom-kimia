@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   LogIn,
   GraduationCap,
-  User
+  User,
+  BarChart3
 } from 'lucide-react'
 import type { AtomModel } from './types/atom'
 import { learningContentService } from './services/learningContentService'
@@ -22,6 +23,7 @@ import { ComparisonView } from './components/comparison/ComparisonView'
 import { QuizWorkspace } from './components/quiz/QuizWorkspace'
 import { TimelineWorkspace } from './components/timeline/TimelineWorkspace'
 import { AuthView } from './components/auth/AuthView'
+import { TeacherMonitoringModal } from './components/teacher/TeacherMonitoringModal'
 import {
   authService,
   SyncService,
@@ -49,6 +51,7 @@ export default function App() {
   const [showGoogleLoginModal, setShowGoogleLoginModal] = useState<boolean>(false)
   const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false)
   const [showGuestMigrationModal, setShowGuestMigrationModal] = useState<boolean>(false)
+  const [showTeacherMonitoringModal, setShowTeacherMonitoringModal] = useState<boolean>(false)
   const [guestSummary, setGuestSummary] = useState<GuestResultsSummary | null>(null)
   const [unsentCount, setUnsentCount] = useState<number>(0)
   const [confirmWipeData, setConfirmWipeData] = useState<boolean>(false)
@@ -311,6 +314,20 @@ export default function App() {
                 </div>
               )}
             </div>
+
+            {/* Tombol Dasbor Pemantauan Guru (0–600 XP & Nilai Kuis) */}
+            {(userAccess.role === 'teacher' || authService.getPreviewRole() === 'teacher') && (
+              <button
+                type="button"
+                onClick={() => setShowTeacherMonitoringModal(true)}
+                className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                title="Buka panel pemantauan rekapitulasi poin eksplorasi (0-600 XP) dan skor kuis siswa"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Dasbor Guru (XP & Skor)</span>
+                <span className="md:hidden">Dasbor Guru</span>
+              </button>
+            )}
 
             {!userAccess.isAuthenticated ? (
               <>
@@ -771,6 +788,12 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* ── Modal Dasbor Pemantauan Siswa Mode Guru ───────────────────────── */}
+      <TeacherMonitoringModal
+        isOpen={showTeacherMonitoringModal}
+        onClose={() => setShowTeacherMonitoringModal(false)}
+      />
     </div>
   )
 }

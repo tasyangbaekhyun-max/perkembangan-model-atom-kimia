@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { ShieldAlert } from 'lucide-react'
 
 type OrbitalType = '1s' | '2s' | '2px' | '2py' | '2pz' | '2p_all'
@@ -9,12 +9,22 @@ interface QuantumPoint {
   opacity: number
 }
 
-export function QuantumSimulator() {
+export function QuantumSimulator({ onComplete, isCompleted }: { onComplete?: () => void; isCompleted?: boolean }) {
   const [selectedOrbital, setSelectedOrbital] = useState<OrbitalType>('1s')
   const [probabilityDensity, setProbabilityDensity] = useState<number>(85)
-  const [points, setPoints] = useState<QuantumPoint[]>([])
+  const [hasChangedOrbital, setHasChangedOrbital] = useState<boolean>(() => Boolean(isCompleted))
+  const [hasAdjustedDensity, setHasAdjustedDensity] = useState<boolean>(() => Boolean(isCompleted))
+  const onCompleteCalledRef = useRef<boolean>(false)
 
+  // Fire onComplete when user explores a different orbital or adjusts density
   useEffect(() => {
+    if ((hasChangedOrbital || hasAdjustedDensity || isCompleted) && !onCompleteCalledRef.current && !isCompleted) {
+      onCompleteCalledRef.current = true
+      onComplete?.()
+    }
+  }, [hasChangedOrbital, hasAdjustedDensity, isCompleted, onComplete])
+
+  const points = useMemo(() => {
     const totalPoints = Math.round((probabilityDensity / 100) * 160)
     const newPoints: QuantumPoint[] = []
 
@@ -76,7 +86,7 @@ export function QuantumSimulator() {
       })
     }
 
-    setPoints(newPoints)
+    return newPoints
   }, [selectedOrbital, probabilityDensity])
 
   const quantumNumbers = {
@@ -92,6 +102,42 @@ export function QuantumSimulator() {
 
   return (
     <div className="flex flex-col gap-4 w-full">
+      {/* Checklist Aksi Wajib Laboratorium */}
+      <div className={`p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs ${
+        isCompleted || (hasChangedOrbital && hasAdjustedDensity)
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+          : 'bg-cyan-50/90 border-cyan-300 text-cyan-950'
+      }`}>
+        <span className="font-bold text-[11px] uppercase tracking-wider">Aksi Wajib Lab:</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              hasChangedOrbital || isCompleted ? 'bg-emerald-600 text-white' : 'bg-cyan-200 text-cyan-800'
+            }`}>
+              {hasChangedOrbital || isCompleted ? '✓' : '1'}
+            </span>
+            <span className={hasChangedOrbital || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Pilih bentuk orbital atom (2s / 2p)
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              hasAdjustedDensity || isCompleted ? 'bg-emerald-600 text-white' : 'bg-cyan-200 text-cyan-800'
+            }`}>
+              {hasAdjustedDensity || isCompleted ? '✓' : '2'}
+            </span>
+            <span className={hasAdjustedDensity || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Atur kerapatan probabilitas (|Ψ|²)
+            </span>
+          </div>
+          {(isCompleted || (hasChangedOrbital && hasAdjustedDensity)) && (
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs">
+              +35 XP Tuntas
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Simulation Screen */}
       <div className="relative w-full h-80 rounded-2xl bg-gradient-to-b from-cyan-50/90 via-white to-blue-50/90 border-2 border-cyan-200/80 flex flex-col items-center justify-between p-4 overflow-hidden shadow-inner">
         
@@ -174,8 +220,11 @@ export function QuantumSimulator() {
           {(['1s', '2s', '2px', '2py', '2pz', '2p_all'] as OrbitalType[]).map((orb) => (
             <button
               key={orb}
-              onClick={() => setSelectedOrbital(orb)}
-              className={`py-2 px-2 rounded-xl text-xs font-mono font-bold transition border ${
+              onClick={() => {
+                setSelectedOrbital(orb)
+                if (orb !== '1s') setHasChangedOrbital(true)
+              }}
+              className={`py-2 px-2 rounded-xl text-xs font-mono font-bold transition border cursor-pointer ${
                 selectedOrbital === orb
                   ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-blue-600 shadow-md shadow-cyan-500/20'
                   : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
@@ -198,7 +247,10 @@ export function QuantumSimulator() {
           min="40"
           max="100"
           value={probabilityDensity}
-          onChange={(e) => setProbabilityDensity(Number(e.target.value))}
+          onChange={(e) => {
+            setProbabilityDensity(Number(e.target.value))
+            setHasAdjustedDensity(true)
+          }}
           className="w-full accent-blue-600 cursor-pointer"
         />
       </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Zap, Sparkles } from 'lucide-react'
 
 interface TransitionInfo {
@@ -11,10 +11,12 @@ interface TransitionInfo {
   type: 'emission' | 'absorption'
 }
 
-export function BohrSimulator() {
+export function BohrSimulator({ onComplete, isCompleted }: { onComplete?: () => void; isCompleted?: boolean }) {
   const [currentOrbit, setCurrentOrbit] = useState<number>(2)
   const [transitionMessage, setTransitionMessage] = useState<TransitionInfo | null>(null)
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false)
+  const [hasJumpedOnce, setHasJumpedOnce] = useState<boolean>(() => Boolean(isCompleted))
+  const onCompleteCalledRef = useRef<boolean>(false)
 
   const energyLevels: Record<number, number> = {
     1: -13.6,
@@ -34,6 +36,12 @@ export function BohrSimulator() {
     if (targetOrbit === currentOrbit || isTransitioning) return
 
     setIsTransitioning(true)
+    setHasJumpedOnce(true)
+    // Fire onComplete on first successful orbital jump
+    if (!onCompleteCalledRef.current && !isCompleted) {
+      onCompleteCalledRef.current = true
+      onComplete?.()
+    }
     const isEmission = targetOrbit < currentOrbit
     const deltaE = Math.abs(energyLevels[targetOrbit] - energyLevels[currentOrbit])
 
@@ -63,8 +71,60 @@ export function BohrSimulator() {
     }, 600)
   }
 
+  const performBalmerJump = (fromOrbit: number) => {
+    if (isTransitioning) return
+    setCurrentOrbit(fromOrbit)
+    setIsTransitioning(true)
+    setHasJumpedOnce(true)
+    if (!onCompleteCalledRef.current && !isCompleted) {
+      onCompleteCalledRef.current = true
+      onComplete?.()
+    }
+    const deltaE = Math.abs(energyLevels[2] - energyLevels[fromOrbit])
+    const balmer = balmerTransitions[fromOrbit]
+    setTransitionMessage({
+      from: fromOrbit,
+      to: 2,
+      colorName: balmer?.color || 'Foton Balmer',
+      wavelength: balmer?.nm || 486,
+      energy: Number(deltaE.toFixed(2)),
+      hexColor: balmer?.hex || '#0891b2',
+      type: 'emission',
+    })
+    setTimeout(() => {
+      setCurrentOrbit(2)
+      setIsTransitioning(false)
+    }, 600)
+  }
+
   return (
     <div className="flex flex-col gap-4 w-full">
+      {/* Checklist Aksi Wajib Laboratorium */}
+      <div className={`p-3 rounded-2xl border text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs ${
+        isCompleted || hasJumpedOnce
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+          : 'bg-pink-50/90 border-pink-300 text-pink-950'
+      }`}>
+        <span className="font-bold text-[11px] uppercase tracking-wider">Aksi Wajib Lab:</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+              hasJumpedOnce || isCompleted ? 'bg-emerald-600 text-white' : 'bg-pink-200 text-pink-800'
+            }`}>
+              {hasJumpedOnce || isCompleted ? '✓' : '1'}
+            </span>
+            <span className={hasJumpedOnce || isCompleted ? 'line-through text-slate-500 font-medium' : 'font-bold'}>
+              Lakukan transisi kuantum elektron (klik orbit n=1..5 atau pilih Deret Balmer)
+            </span>
+          </div>
+          {(isCompleted || hasJumpedOnce) && (
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs">
+              +35 XP Tuntas
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Simulation Screen */}
       <div className="relative w-full h-80 rounded-2xl bg-gradient-to-b from-pink-50/90 via-white to-rose-50/90 border-2 border-pink-200/80 flex flex-col items-center justify-between p-4 overflow-hidden shadow-inner">
         
@@ -180,33 +240,24 @@ export function BohrSimulator() {
         <span className="text-xs font-bold text-slate-700">Pilih Transisi Kuantum Deret Balmer:</span>
         <div className="grid grid-cols-3 gap-2">
           <button
-            onClick={() => {
-              setCurrentOrbit(3)
-              setTimeout(() => handleJump(2), 200)
-            }}
-            className="py-2.5 px-3 rounded-xl text-xs font-bold bg-red-50 text-red-700 border-2 border-red-200 hover:bg-red-100 transition flex items-center justify-between shadow-xs"
+            onClick={() => performBalmerJump(3)}
+            className="py-2.5 px-3 rounded-xl text-xs font-bold bg-red-50 text-red-700 border-2 border-red-200 hover:bg-red-100 transition flex items-center justify-between shadow-xs cursor-pointer"
           >
             <span>n = 3 → 2</span>
             <span className="w-3 h-3 rounded-full bg-red-500 shadow-xs" />
           </button>
 
           <button
-            onClick={() => {
-              setCurrentOrbit(4)
-              setTimeout(() => handleJump(2), 200)
-            }}
-            className="py-2.5 px-3 rounded-xl text-xs font-bold bg-cyan-50 text-cyan-800 border-2 border-cyan-200 hover:bg-cyan-100 transition flex items-center justify-between shadow-xs"
+            onClick={() => performBalmerJump(4)}
+            className="py-2.5 px-3 rounded-xl text-xs font-bold bg-cyan-50 text-cyan-800 border-2 border-cyan-200 hover:bg-cyan-100 transition flex items-center justify-between shadow-xs cursor-pointer"
           >
             <span>n = 4 → 2</span>
             <span className="w-3 h-3 rounded-full bg-cyan-500 shadow-xs" />
           </button>
 
           <button
-            onClick={() => {
-              setCurrentOrbit(5)
-              setTimeout(() => handleJump(2), 200)
-            }}
-            className="py-2.5 px-3 rounded-xl text-xs font-bold bg-blue-50 text-blue-800 border-2 border-blue-200 hover:bg-blue-100 transition flex items-center justify-between shadow-xs"
+            onClick={() => performBalmerJump(5)}
+            className="py-2.5 px-3 rounded-xl text-xs font-bold bg-blue-50 text-blue-800 border-2 border-blue-200 hover:bg-blue-100 transition flex items-center justify-between shadow-xs cursor-pointer"
           >
             <span>n = 5 → 2</span>
             <span className="w-3 h-3 rounded-full bg-blue-500 shadow-xs" />

@@ -28,7 +28,8 @@ import {
   Printer,
   Plus,
   Edit3,
-  GraduationCap
+  GraduationCap,
+  BarChart3
 } from 'lucide-react'
 import { QUIZ_QUESTIONS, QUESTION_SET_VERSION } from '../../data/quizQuestions'
 import type {
@@ -52,6 +53,8 @@ import { learningContentService } from '../../services/learningContentService'
 import { QuestionEditorModal } from '../editor/QuestionEditorModal'
 import { DeleteConfirmationModal } from '../editor/DeleteConfirmationModal'
 import { RichContentRenderer } from '../editor/RichContentRenderer'
+import { learningProgressService } from '../../services/learningProgressService'
+import { TeacherMonitoringModal } from '../teacher/TeacherMonitoringModal'
 
 interface QuizWorkspaceProps {
   onBackToHome?: () => void
@@ -99,6 +102,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
   const [showResetDraftModal, setShowResetDraftModal] = useState<boolean>(false)
   const [showClearHistoryModal, setShowClearHistoryModal] = useState<boolean>(false)
   const [showBab4PayloadModal, setShowBab4PayloadModal] = useState<boolean>(false)
+  const [isMonitoringModalOpen, setIsMonitoringModalOpen] = useState<boolean>(false)
   const [bab4SyncMessage, setBab4SyncMessage] = useState<string>('')
 
   // Selected item for click-to-move in Drag and Drop (Mobile-friendly)
@@ -282,6 +286,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
           totalAttemptsMade: Object.values(updatedResponses).reduce((sum, r) => sum + r.attemptsCount, 0),
         }
         SyncService.saveFinalScoreLocally(historyItem)
+        learningProgressService.updateQuizScore(historyItem.firstAttemptScore, historyItem.attemptId)
         setScoreHistory(SyncService.loadScoreHistory())
       }
 
@@ -651,6 +656,15 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
           </div>
 
           <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+            <button
+              onClick={() => setIsMonitoringModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md shadow-amber-400/20 flex items-center gap-1.5 cursor-pointer transition active:scale-95"
+              title="Buka panel pemantauan rekapitulasi poin eksplorasi dan skor kuis siswa"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Pantau Poin & Nilai Siswa</span>
+            </button>
+
             <button
               onClick={handleOpenCreateQuestion}
               className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 flex items-center gap-1.5 cursor-pointer transition active:scale-95"
@@ -1785,6 +1799,12 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
         onConfirm={handleConfirmDeleteQuestion}
         onCancel={() => setIsDeleteModalOpen(false)}
         isDeleting={isDeletingQuestion}
+      />
+
+      {/* ── Modal Dasbor Pemantauan Siswa Mode Guru ───────────────────────── */}
+      <TeacherMonitoringModal
+        isOpen={isMonitoringModalOpen}
+        onClose={() => setIsMonitoringModalOpen(false)}
       />
 
     </div>
