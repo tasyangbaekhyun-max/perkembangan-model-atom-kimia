@@ -106,13 +106,14 @@ export function createNewAttemptSession(): QuizAttemptSession {
  */
 export function saveActiveSession(session: QuizAttemptSession): StorageOperationResult<QuizAttemptSession> {
   session.updatedAt = new Date().toISOString()
+  // Selalu amankan draf di memori terlebih dahulu agar pekerjaan pengguna tidak hilang
+  memorySessionStore = { ...session }
 
   if (!checkStorageAvailability()) {
-    memorySessionStore = { ...session }
     return {
       success: false,
       data: session,
-      error: lastStorageErrorMessage || 'Penyimpanan lokal ditolak oleh peramban.',
+      error: lastStorageErrorMessage || 'Penyimpanan lokal ditolak oleh peramban. Draf dipertahankan di memori.',
       isFallbackMemory: true,
     }
   }
@@ -120,18 +121,16 @@ export function saveActiveSession(session: QuizAttemptSession): StorageOperation
   try {
     const serialized = JSON.stringify(session)
     window.localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, serialized)
-    memorySessionStore = { ...session }
     return {
       success: true,
       data: session,
       isFallbackMemory: false,
     }
   } catch (err: any) {
-    memorySessionStore = { ...session }
     const isQuota = err?.name === 'QuotaExceededError' || err?.code === 22
     const errorMsg = isQuota
-      ? 'Kapasitas penyimpanan lokal perangkat penuh (QuotaExceededError).'
-      : err?.message || 'Gagal menyimpan ke penyimpanan lokal perangkat.'
+      ? 'Kapasitas penyimpanan lokal perangkat penuh (QuotaExceededError). Draf tetap aman di memori.'
+      : err?.message || 'Gagal menyimpan ke penyimpanan lokal perangkat. Draf tetap aman di memori.'
 
     lastStorageErrorMessage = errorMsg
     return {
@@ -170,6 +169,9 @@ export function loadActiveSession(): StorageOperationResult<QuizAttemptSession> 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION)
     if (!raw) {
+      if (memorySessionStore) {
+        return { success: true, data: memorySessionStore, isFallbackMemory: true }
+      }
       const newSession = createNewAttemptSession()
       saveActiveSession(newSession)
       return { success: true, data: newSession, isFallbackMemory: false }
@@ -180,7 +182,15 @@ export function loadActiveSession(): StorageOperationResult<QuizAttemptSession> 
     try {
       parsed = JSON.parse(raw)
     } catch {
-      // JSON Corrupt! Jangan menyatakan berhasil simpan / load
+      // Jika JSON corrupt, pertahankan draf dari memori jika ada
+      if (memorySessionStore) {
+        return {
+          success: true,
+          data: memorySessionStore,
+          isFallbackMemory: true,
+          error: 'Data di localStorage rusak. Menggunakan data draf dari memori.',
+        }
+      }
       const recoveredSession = createNewAttemptSession()
       saveActiveSession(recoveredSession)
       return {
@@ -193,6 +203,13 @@ export function loadActiveSession(): StorageOperationResult<QuizAttemptSession> 
 
     // Validasi integritas struktur sesi
     if (!parsed || typeof parsed !== 'object' || !parsed.attemptId) {
+      if (memorySessionStore) {
+        return {
+          success: true,
+          data: memorySessionStore,
+          isFallbackMemory: true,
+        }
+      }
       const recoveredSession = createNewAttemptSession()
       saveActiveSession(recoveredSession)
       return {
@@ -208,6 +225,7 @@ export function loadActiveSession(): StorageOperationResult<QuizAttemptSession> 
       parsed.questionVersion = QUESTION_SET_VERSION
     }
 
+    memorySessionStore = parsed as QuizAttemptSession
     return {
       success: true,
       data: parsed as QuizAttemptSession,
@@ -218,7 +236,7 @@ export function loadActiveSession(): StorageOperationResult<QuizAttemptSession> 
     return {
       success: false,
       data: fallback,
-      error: err?.message || 'Gagal membaca penyimpanan lokal.',
+      error: err?.message || 'Gagal membaca penyimpanan lokal. Draf tetap aman di memori.',
       isFallbackMemory: true,
     }
   }

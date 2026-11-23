@@ -19,6 +19,12 @@ import { QUESTION_SET_VERSION } from '../data/quizQuestions'
 import { learningContentService } from '../services/learningContentService'
 
 export class SyncService {
+  // Memory fallback maps per partisi akun untuk menjaga pekerjaan pengguna tetap aman
+  // jika localStorage diblokir/ditolak (incognito) atau mengalami QuotaExceededError
+  private static memorySessions: Map<string, QuizAttemptSession> = new Map()
+  private static memoryHistories: Map<string, FinalScoreHistory[]> = new Map()
+  private static memoryQueues: Map<string, SubmissionQueueItem[]> = new Map()
+
   private static getPartitionPrefix(): string {
     const accountId = authService.getActiveAccountId()
     return `atomlab_acc_${accountId}`
@@ -37,40 +43,61 @@ export class SyncService {
   }
 
   /**
-   * Memuat sesi kuis dari ruang akun aktif
+   * Memuat sesi kuis dari ruang akun aktif secara aman.
+   * Jika pembacaan storage ditolak atau gagal, sistem mempertahankan draf yang ada di memori.
    */
   public static loadActiveSession(): QuizAttemptSession {
     const key = this.getSessionStorageKey()
-    if (typeof window === 'undefined') return this.createInitialSession()
 
-    try {
-      const raw = window.localStorage.getItem(key)
-      if (raw) {
-        const parsed = JSON.parse(raw) as QuizAttemptSession
-        if (parsed && parsed.attemptId) {
-          return parsed
+    // 1. Coba baca dari localStorage secara aman dengan try...catch
+    if (typeof window !== 'undefined') {
+      try {
+        if (window.localStorage) {
+          const raw = window.localStorage.getItem(key)
+          if (raw) {
+            const parsed = JSON.parse(raw) as QuizAttemptSession
+            if (parsed && parsed.attemptId) {
+              this.memorySessions.set(key, parsed)
+              return parsed
+            }
+          }
         }
+      } catch (err) {
+        console.warn('[SyncService] Gagal membaca sesi dari localStorage, beralih ke cache memori:', err)
       }
-    } catch {
-      // Fallback
     }
 
+    // 2. Pertahankan draf di memori jika penyimpanan lokal kosong/ditolak/gagal
+    const inMemory = this.memorySessions.get(key)
+    if (inMemory && inMemory.attemptId) {
+      return inMemory
+    }
+
+    // 3. Hanya buat sesi inisial baru jika benar-benar belum ada draf di storage maupun memori
     const newSession = this.createInitialSession()
     this.saveDraftLocally(newSession)
     return newSession
   }
 
   /**
-   * Simpan draf secara lokal sebelum request jaringan
-   * Sesuai aturan: "Simpan draf dan hasil sebelum request jaringan"
+   * Simpan draf secara lokal sebelum request jaringan.
+   * Draf selalu disimpan di memori aplikasi terlebih dahulu agar tidak hilang jika localStorage ditolak/kuota habis.
    */
   public static saveDraftLocally(session: QuizAttemptSession): void {
     session.updatedAt = new Date().toISOString()
     const key = this.getSessionStorageKey()
+
+    // SELALU pertahankan draf di memori aplikasi
+    this.memorySessions.set(key, { ...session })
+
+    if (typeof window === 'undefined') return
+
     try {
-      window.localStorage.setItem(key, JSON.stringify(session))
-    } catch {
-      // Memory fallback jika quota habis
+      if (window.localStorage) {
+        window.localStorage.setItem(key, JSON.stringify(session))
+      }
+    } catch (err) {
+      console.warn('[SyncService] Penyimpanan localStorage ditolak/penuh. Draf tetap aman di memori aplikasi:', err)
     }
   }
 
@@ -79,30 +106,43 @@ export class SyncService {
    */
   public static loadScoreHistory(): FinalScoreHistory[] {
     const key = this.getHistoryStorageKey()
-    if (typeof window === 'undefined') return []
-    try {
-      const raw = window.localStorage.getItem(key)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed)) return parsed
+    if (typeof window !== 'undefined') {
+      try {
+        if (window.localStorage) {
+          const raw = window.localStorage.getItem(key)
+          if (raw) {
+            const parsed = JSON.parse(raw)
+            if (Array.isArray(parsed)) {
+              this.memoryHistories.set(key, parsed)
+              return parsed
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[SyncService] Gagal membaca riwayat skor dari localStorage:', err)
       }
-    } catch {
-      // Fallback
     }
-    return []
+    return this.memoryHistories.get(key) || []
   }
 
   /**
    * Simpan skor akhir ke riwayat ruang akun aktif sebelum jaringan
    */
   public static saveFinalScoreLocally(historyItem: FinalScoreHistory): void {
-    const list = this.loadScoreHistory()
-    const updated = [historyItem, ...list].slice(0, 10)
     const key = this.getHistoryStorageKey()
+    const list = this.loadScoreHistory()
+    const updated = [historyItem, ...list.filter((h) => h.attemptId !== historyItem.attemptId)].slice(0, 10)
+
+    this.memoryHistories.set(key, updated)
+
+    if (typeof window === 'undefined') return
+
     try {
-      window.localStorage.setItem(key, JSON.stringify(updated))
-    } catch {
-      // Fallback
+      if (window.localStorage) {
+        window.localStorage.setItem(key, JSON.stringify(updated))
+      }
+    } catch (err) {
+      console.warn('[SyncService] Gagal menyimpan riwayat skor ke localStorage, disimpan di memori:', err)
     }
   }
 
@@ -111,17 +151,23 @@ export class SyncService {
    */
   public static loadQueue(): SubmissionQueueItem[] {
     const key = this.getQueueStorageKey()
-    if (typeof window === 'undefined') return []
-    try {
-      const raw = window.localStorage.getItem(key)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed)) return parsed
+    if (typeof window !== 'undefined') {
+      try {
+        if (window.localStorage) {
+          const raw = window.localStorage.getItem(key)
+          if (raw) {
+            const parsed = JSON.parse(raw)
+            if (Array.isArray(parsed)) {
+              this.memoryQueues.set(key, parsed)
+              return parsed
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[SyncService] Gagal membaca antrean dari localStorage:', err)
       }
-    } catch {
-      // Fallback
     }
-    return []
+    return this.memoryQueues.get(key) || []
   }
 
   /**
@@ -129,10 +175,16 @@ export class SyncService {
    */
   public static saveQueue(items: SubmissionQueueItem[]): void {
     const key = this.getQueueStorageKey()
+    this.memoryQueues.set(key, items)
+
+    if (typeof window === 'undefined') return
+
     try {
-      window.localStorage.setItem(key, JSON.stringify(items))
-    } catch {
-      // Fallback
+      if (window.localStorage) {
+        window.localStorage.setItem(key, JSON.stringify(items))
+      }
+    } catch (err) {
+      console.warn('[SyncService] Gagal menyimpan antrean ke localStorage, disimpan di memori:', err)
     }
   }
 
@@ -380,49 +432,73 @@ export class SyncService {
    * Tautkan hasil tamu ke akun yang baru login (Pilihan Pengguna)
    */
   public static claimGuestResultsToAccount(targetAccountId: string): void {
+    const guestSessionKey = 'atomlab_acc_guest_active_session'
+    const guestHistoryKey = 'atomlab_acc_guest_score_history'
+    const guestQueueKey = 'atomlab_acc_guest_submission_queue'
+    const targetSessionKey = `atomlab_acc_${targetAccountId}_active_session`
+    const targetHistoryKey = `atomlab_acc_${targetAccountId}_score_history`
+    const targetQueueKey = `atomlab_acc_${targetAccountId}_submission_queue`
+
+    // Pindahkan di memori aplikasi terlebih dahulu
+    const memSession = this.memorySessions.get(guestSessionKey)
+    if (memSession) {
+      this.memorySessions.set(targetSessionKey, memSession)
+      this.memorySessions.delete(guestSessionKey)
+    }
+    const memHistory = this.memoryHistories.get(guestHistoryKey)
+    if (memHistory) {
+      this.memoryHistories.set(targetHistoryKey, memHistory)
+      this.memoryHistories.delete(guestHistoryKey)
+    }
+    const memQueue = this.memoryQueues.get(guestQueueKey)
+    if (memQueue) {
+      const existingTargetQueue = this.memoryQueues.get(targetQueueKey) || []
+      const migrated = memQueue.map((item) => ({ ...item, accountId: targetAccountId }))
+      this.memoryQueues.set(targetQueueKey, [
+        ...migrated,
+        ...existingTargetQueue.filter((t) => !migrated.some((m) => m.attemptId === t.attemptId)),
+      ])
+      this.memoryQueues.delete(guestQueueKey)
+    }
+
     if (typeof window === 'undefined') return
     try {
-      const guestSessionKey = 'atomlab_acc_guest_active_session'
-      const guestHistoryKey = 'atomlab_acc_guest_score_history'
-      const guestQueueKey = 'atomlab_acc_guest_submission_queue'
-      const targetSessionKey = `atomlab_acc_${targetAccountId}_active_session`
-      const targetHistoryKey = `atomlab_acc_${targetAccountId}_score_history`
-      const targetQueueKey = `atomlab_acc_${targetAccountId}_submission_queue`
-
-      const rawSession = window.localStorage.getItem(guestSessionKey)
-      if (rawSession) {
-        window.localStorage.setItem(targetSessionKey, rawSession)
-        window.localStorage.removeItem(guestSessionKey)
-      }
-
-      const rawHistory = window.localStorage.getItem(guestHistoryKey)
-      if (rawHistory) {
-        window.localStorage.setItem(targetHistoryKey, rawHistory)
-        window.localStorage.removeItem(guestHistoryKey)
-      }
-
-      // Pindahkan antrean tertunda dari akun tamu ke akun login agar tidak hilang
-      const rawGuestQueue = window.localStorage.getItem(guestQueueKey)
-      if (rawGuestQueue) {
-        try {
-          const guestQueue = JSON.parse(rawGuestQueue)
-          if (Array.isArray(guestQueue) && guestQueue.length > 0) {
-            const rawTargetQueue = window.localStorage.getItem(targetQueueKey)
-            const targetQueue: SubmissionQueueItem[] = rawTargetQueue ? JSON.parse(rawTargetQueue) : []
-            const migratedQueue: SubmissionQueueItem[] = guestQueue.map((item: SubmissionQueueItem) => ({
-              ...item,
-              accountId: targetAccountId,
-            }))
-            const mergedQueue = [
-              ...migratedQueue,
-              ...targetQueue.filter((t) => !migratedQueue.some((m) => m.attemptId === t.attemptId)),
-            ]
-            window.localStorage.setItem(targetQueueKey, JSON.stringify(mergedQueue))
-          }
-        } catch {
-          // ignore
+      if (window.localStorage) {
+        const rawSession = window.localStorage.getItem(guestSessionKey)
+        if (rawSession) {
+          window.localStorage.setItem(targetSessionKey, rawSession)
+          window.localStorage.removeItem(guestSessionKey)
         }
-        window.localStorage.removeItem(guestQueueKey)
+
+        const rawHistory = window.localStorage.getItem(guestHistoryKey)
+        if (rawHistory) {
+          window.localStorage.setItem(targetHistoryKey, rawHistory)
+          window.localStorage.removeItem(guestHistoryKey)
+        }
+
+        // Pindahkan antrean tertunda dari akun tamu ke akun login agar tidak hilang
+        const rawGuestQueue = window.localStorage.getItem(guestQueueKey)
+        if (rawGuestQueue) {
+          try {
+            const guestQueue = JSON.parse(rawGuestQueue)
+            if (Array.isArray(guestQueue) && guestQueue.length > 0) {
+              const rawTargetQueue = window.localStorage.getItem(targetQueueKey)
+              const targetQueue: SubmissionQueueItem[] = rawTargetQueue ? JSON.parse(rawTargetQueue) : []
+              const migratedQueue: SubmissionQueueItem[] = guestQueue.map((item: SubmissionQueueItem) => ({
+                ...item,
+                accountId: targetAccountId,
+              }))
+              const mergedQueue = [
+                ...migratedQueue,
+                ...targetQueue.filter((t) => !migratedQueue.some((m) => m.attemptId === t.attemptId)),
+              ]
+              window.localStorage.setItem(targetQueueKey, JSON.stringify(mergedQueue))
+            }
+          } catch {
+            // ignore
+          }
+          window.localStorage.removeItem(guestQueueKey)
+        }
       }
     } catch {
       // Fallback
@@ -446,32 +522,44 @@ export class SyncService {
   }
 
   /**
-   * Membersihkan seluruh data kuis aktif dari localStorage:
+   * Membersihkan seluruh data kuis aktif dari localStorage dan memori aplikasi:
    * - Sesi kuis aktif (seluruh partisi atomlab_acc_*_active_session)
    * - Riwayat skor (seluruh partisi atomlab_acc_*_score_history)
    * - Antrean pengiriman/sinkronisasi (seluruh partisi atomlab_acc_*_submission_queue)
    * - Kunci penyimpanan Lampiran B (atomlab_lampiran_b_*)
    */
   public static clearAllQuizStorage(): void {
+    this.memorySessions.clear()
+    this.memoryHistories.clear()
+    this.memoryQueues.clear()
+
     if (typeof window === 'undefined') return
 
     try {
-      const keysToRemove: string[] = []
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const key = window.localStorage.key(i)
-        if (!key) continue
-        if (
-          key.endsWith('_active_session') ||
-          key.endsWith('_score_history') ||
-          key.endsWith('_submission_queue') ||
-          key.startsWith('atomlab_lampiran_b_')
-        ) {
-          keysToRemove.push(key)
+      if (window.localStorage) {
+        const keysToRemove: string[] = []
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i)
+          if (!key) continue
+          if (
+            key.endsWith('_active_session') ||
+            key.endsWith('_score_history') ||
+            key.endsWith('_submission_queue') ||
+            key.startsWith('atomlab_lampiran_b_')
+          ) {
+            keysToRemove.push(key)
+          }
         }
+        keysToRemove.forEach((k) => {
+          try {
+            window.localStorage.removeItem(k)
+          } catch {
+            // ignore
+          }
+        })
       }
-      keysToRemove.forEach((k) => window.localStorage.removeItem(k))
-    } catch {
-      // Fallback
+    } catch (err) {
+      console.warn('[SyncService] Gagal membersihkan storage:', err)
     }
   }
 

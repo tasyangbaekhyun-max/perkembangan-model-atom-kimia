@@ -195,10 +195,15 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
   const currentAttempts = currentResponse?.attemptsCount ?? 0
 
   // Sinkronisasi penyimpanan lokal secara langsung SEBELUM request jaringan
+  // Draf tetap aman di memori aplikasi jika penyimpanan lokal gagal/ditolak
   const updateSession = useCallback((updater: (prev: QuizAttemptSession) => QuizAttemptSession) => {
     setSession((prev) => {
       const next = updater(prev)
-      SyncService.saveDraftLocally(next)
+      try {
+        SyncService.saveDraftLocally(next)
+      } catch (err) {
+        console.warn('[QuizWorkspace] Gagal menyimpan draf sesi ke storage:', err)
+      }
       return next
     })
   }, [])
@@ -438,7 +443,11 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
       isCompleted: false,
       updatedAt: new Date().toISOString(),
     }
-    SyncService.saveDraftLocally(fresh)
+    try {
+      SyncService.saveDraftLocally(fresh)
+    } catch (err) {
+      console.warn('[QuizWorkspace] Gagal menyimpan draf sesi saat reset:', err)
+    }
     setSession(fresh)
     setShowResetDraftModal(false)
     setSelectedDragItem(null)
@@ -448,7 +457,11 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
   // Sesuai aturan: "percobaan baru memakai ID baru"
   const handleStartNewAttempt = () => {
     const fresh = SyncService.createInitialSession()
-    SyncService.saveDraftLocally(fresh)
+    try {
+      SyncService.saveDraftLocally(fresh)
+    } catch (err) {
+      console.warn('[QuizWorkspace] Gagal menyimpan sesi percobaan baru:', err)
+    }
     setSession(fresh)
     setSubmissionStatus('lokal')
     setSelectedDragItem(null)
@@ -456,11 +469,19 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
 
   // Eksekusi Hapus Seluruh Riwayat Perangkat
   const confirmClearAllDeviceHistory = () => {
-    clearAllDeviceHistory()
-    SyncService.clearAllQuizStorage()
-    learningProgressService.resetQuizProgress()
+    try {
+      clearAllDeviceHistory()
+      SyncService.clearAllQuizStorage()
+      learningProgressService.resetQuizProgress()
+    } catch (err) {
+      console.warn('[QuizWorkspace] Gagal membersihkan seluruh riwayat perangkat:', err)
+    }
     const fresh = SyncService.createInitialSession()
-    SyncService.saveDraftLocally(fresh)
+    try {
+      SyncService.saveDraftLocally(fresh)
+    } catch (err) {
+      console.warn('[QuizWorkspace] Gagal menyimpan sesi inisial setelah pembersihan:', err)
+    }
     setSession(fresh)
     setScoreHistory([])
     setSubmissionStatus('lokal')
