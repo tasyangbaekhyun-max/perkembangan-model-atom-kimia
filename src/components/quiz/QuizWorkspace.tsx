@@ -798,7 +798,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
             {/* Sertifikat Kelulusan & Penguasaan Konsep */}
             <div
               id="quiz-certificate-card"
-              className="relative p-6 sm:p-10 rounded-3xl bg-gradient-to-br from-amber-50/60 via-white to-sky-50/60 border-4 border-amber-300 shadow-xl overflow-hidden print:m-0 print:p-8 print:border-4 print:border-amber-400 print:shadow-none print:bg-white"
+              className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-amber-50/60 via-white to-sky-50/60 border-4 border-amber-300 shadow-xl overflow-hidden print:m-0 print:p-5 print:border-4 print:border-amber-500 print:shadow-none print:bg-white"
             >
               {/* Ornamen Sudut Sertifikat */}
               <div className="absolute top-2 left-2 w-8 h-8 border-t-2 border-l-2 border-amber-500 rounded-tl-lg pointer-events-none" />
@@ -808,94 +808,94 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
 
               {/* Watermark Logo Kimia */}
               <div className="absolute inset-0 flex items-center justify-center opacity-4 pointer-events-none">
-                <span className="text-[200px] font-black select-none">⚛</span>
+                <span className="text-[180px] font-black select-none">⚛</span>
               </div>
 
               {/* Header Sertifikat */}
               <div className="relative text-center flex flex-col items-center">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-100/90 text-amber-900 border border-amber-300 font-extrabold text-[11px] uppercase tracking-widest shadow-2xs mb-2">
-                  <Award className="w-4 h-4 text-amber-600" />
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/90 text-amber-900 border border-amber-300 font-extrabold text-[10px] sm:text-[11px] uppercase tracking-widest shadow-2xs mb-1.5 print:mb-1">
+                  <Award className="w-3.5 h-3.5 text-amber-600" />
                   <span>Sertifikat Hasil Asesmen Diagnostik &amp; Penguasaan Konsep</span>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase print:text-xl">
                   Perkembangan Model Teori Atom
                 </h2>
-                <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">
+                <p className="text-[11px] sm:text-xs font-semibold text-slate-600 mt-0.5 print:text-[10px]">
                   Media Pembelajaran Interaktif Kimia Fase E SMA • Berdasarkan Kurikulum Merdeka
                 </p>
-                <div className="w-32 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent mt-3" />
+                <div className="w-28 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent mt-2 print:mt-1.5" />
               </div>
 
               {/* Isi Penerima Sertifikat */}
-              <div className="relative my-6 text-center">
-                <p className="text-xs text-slate-500 font-medium">Diberikan dengan bangga kepada:</p>
-                <h3 className="text-2xl sm:text-3xl font-extrabold text-indigo-950 mt-1 underline decoration-amber-400 decoration-2 underline-offset-6">
+              <div className="relative my-4 sm:my-5 text-center print:my-2.5">
+                <p className="text-[11px] text-slate-500 font-medium">Diberikan dengan bangga kepada:</p>
+                <h3 className="text-xl sm:text-2xl font-extrabold text-indigo-950 mt-0.5 underline decoration-amber-400 decoration-2 underline-offset-4 print:text-xl">
                   {studentName}
                 </h3>
-                <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-700 border border-slate-200">
+                <div className="inline-flex items-center gap-2 mt-1.5 px-2.5 py-0.5 bg-slate-100 rounded-lg text-[11px] font-bold text-slate-700 border border-slate-200">
                   <span>Kelas / Rombel:</span>
                   <span className="text-indigo-700 font-mono">{studentClass}</span>
                 </div>
               </div>
 
               {/* Ringkasan Skor & Statistik */}
-              <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-3 my-6">
-                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs text-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Total Soal</span>
-                  <div className="text-2xl font-black text-slate-900 mt-0.5">{totalQuestions}</div>
-                  <span className="text-[10px] text-slate-400">Soal Objektif</span>
+              <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 my-4 sm:my-5 print:my-2.5">
+                <div className="p-2.5 sm:p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs text-center print:p-2">
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-wider">Total Soal</span>
+                  <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 print:text-lg">{totalQuestions}</div>
+                  <span className="text-[9px] text-slate-400">Soal Objektif</span>
                 </div>
-                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-2xs text-center">
-                  <span className="text-[10px] font-bold uppercase text-emerald-800 tracking-wider">Benar (Coba 1)</span>
-                  <div className="text-2xl font-black text-emerald-700 mt-0.5">{completedFirstAttemptCount}</div>
-                  <span className="text-[10px] text-emerald-600 font-medium">Langsung Tepat</span>
+                <div className="p-2.5 sm:p-3 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-2xs text-center print:p-2">
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase text-emerald-800 tracking-wider">Benar (Coba 1)</span>
+                  <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5 print:text-lg">{completedFirstAttemptCount}</div>
+                  <span className="text-[9px] text-emerald-600 font-medium">Langsung Tepat</span>
                 </div>
-                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 shadow-2xs text-center">
-                  <span className="text-[10px] font-bold uppercase text-rose-800 tracking-wider">Salah (Coba 1)</span>
-                  <div className="text-2xl font-black text-rose-700 mt-0.5">{totalIncorrectFirstTry}</div>
-                  <span className="text-[10px] text-rose-600 font-medium">Perlu Remediasi</span>
+                <div className="p-2.5 sm:p-3 rounded-2xl bg-rose-50 border border-rose-200 shadow-2xs text-center print:p-2">
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase text-rose-800 tracking-wider">Salah (Coba 1)</span>
+                  <div className="text-xl sm:text-2xl font-black text-rose-700 mt-0.5 print:text-lg">{totalIncorrectFirstTry}</div>
+                  <span className="text-[9px] text-rose-600 font-medium">Perlu Remediasi</span>
                 </div>
-                <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 shadow-2xs text-center">
-                  <span className="text-[10px] font-bold uppercase text-indigo-800 tracking-wider">% Nilai Murni</span>
-                  <div className="text-2xl font-black text-indigo-700 mt-0.5">{scorePercent}%</div>
-                  <span className="text-[10px] text-indigo-600 font-bold">
+                <div className="p-2.5 sm:p-3 rounded-2xl bg-indigo-50 border border-indigo-200 shadow-2xs text-center print:p-2">
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase text-indigo-800 tracking-wider">% Nilai Murni</span>
+                  <div className="text-xl sm:text-2xl font-black text-indigo-700 mt-0.5 print:text-lg">{scorePercent}%</div>
+                  <span className="text-[9px] text-indigo-600 font-bold">
                     {scorePercent >= 80 ? 'Sangat Baik' : scorePercent >= 65 ? 'Baik' : 'Butuh Penguatan'}
                   </span>
                 </div>
               </div>
 
               {/* Deteksi Diagnostik: Konsep-Konsep yang Masih Lemah */}
-              <div className="relative p-4 sm:p-5 rounded-2xl bg-white/95 border border-slate-200 shadow-2xs mb-6">
-                <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                  <h4 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
-                    <span className="p-1 rounded-md bg-amber-100 text-amber-800">🔍</span>
+              <div className="relative p-3 sm:p-4 rounded-2xl bg-white/95 border border-slate-200 shadow-2xs mb-4 print:mb-2 print:p-3">
+                <div className="flex items-center justify-between flex-wrap gap-1.5 mb-2.5 print:mb-1.5">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5 print:text-xs">
+                    <span className="p-0.5 rounded-md bg-amber-100 text-amber-800">🔍</span>
                     <span>Diagnostik Konsep yang Masih Lemah (Dideteksi &gt;1 Kali Pengerjaan)</span>
                   </h4>
-                  <span className="text-[11px] font-bold text-slate-500">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-500">
                     {weakConceptItems.length === 0 ? 'Semua Dikuasai Langsung' : `${weakConceptItems.length} Konsep Perlu Remediasi`}
                   </span>
                 </div>
 
                 {weakConceptItems.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 sm:max-h-64 overflow-y-auto print:max-h-none print:overflow-visible pr-1">
                     {weakConceptItems.map((q, idx) => {
                       const resp = session.itemResponses[q.id]
                       return (
                         <div
                           key={q.id}
-                          className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 flex items-start gap-2.5 text-xs text-slate-800"
+                          className="p-2 sm:p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80 flex items-start gap-2 text-xs text-slate-800 print:p-1.5"
                         >
-                          <span className="px-2 py-0.5 rounded-md bg-amber-200 text-amber-900 font-mono font-bold shrink-0 text-[10px]">
-                            Soal #{idx + 1}
+                          <span className="px-1.5 py-0.5 rounded-md bg-amber-200 text-amber-900 font-mono font-bold shrink-0 text-[9px] print:text-[8px]">
+                            #{idx + 1}
                           </span>
-                          <div className="flex-1">
-                            <strong className="text-amber-950 block">
+                          <div className="flex-1 min-w-0">
+                            <strong className="text-amber-950 block text-[11px] print:text-[10px] truncate">
                               {q.conceptTag || q.title}
                             </strong>
-                            <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-2">
+                            <p className="text-[10px] text-slate-600 mt-0.5 line-clamp-1 print:text-[9px]">
                               {q.title}
                             </p>
-                            <span className="inline-block mt-1 text-[10px] font-bold text-rose-700">
+                            <span className="inline-block mt-0.5 text-[9px] font-bold text-rose-700 print:text-[8px]">
                               {resp?.attemptsCount ?? 2}x Percobaan dijawab
                             </span>
                           </div>
@@ -904,27 +904,27 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
                     })}
                   </div>
                 ) : (
-                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center text-xs text-emerald-900 font-bold flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-center text-xs text-emerald-900 font-bold flex items-center justify-center gap-2 print:py-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>Luar biasa istimewa! Seluruh 25 konsep berhasil kamu jawab dengan tepat pada percobaan pertama.</span>
                   </div>
                 )}
               </div>
 
               {/* Tanggal & Footer Pengesahan */}
-              <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 text-xs text-slate-500">
+              <div className="relative flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-slate-200 text-[11px] text-slate-500 print:pt-2 print:text-[10px]">
                 <div>
                   <p>Tanggal Asesmen: <strong className="text-slate-700">{currentDateFormatted}</strong></p>
-                  <p className="text-[10px] text-slate-400 font-mono">ID Validasi Percobaan: {session.attemptId}</p>
+                  <p className="text-[9px] text-slate-400 font-mono">ID Validasi Percobaan: {session.attemptId}</p>
                 </div>
                 <div className="text-center sm:text-right">
                   <p className="font-bold text-slate-800">AtomLab Pembelajaran Interaktif</p>
-                  <p className="text-[10px] text-slate-500">Fase E • Validasi Kompetensi Model Atom</p>
+                  <p className="text-[9px] text-slate-500">Fase E • Validasi Kompetensi Model Atom</p>
                 </div>
               </div>
 
               {/* Tombol Cetak / PDF (Disembunyikan saat mencetak) */}
-              <div className="relative mt-6 flex items-center justify-end gap-2.5 print:hidden">
+              <div className="relative mt-5 flex items-center justify-end gap-2.5 print:hidden">
                 <button
                   onClick={() => window.print()}
                   className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 flex items-center gap-2 cursor-pointer transition active:scale-98"
@@ -1048,7 +1048,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
   )}
 
       {/* ---------------- 5. MASTERY QUESTION PALETTE ---------------- */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs print:hidden">
         <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
           <span className="flex items-center gap-1.5">
             <Compass className="w-3.5 h-3.5 text-indigo-600" />
@@ -1106,7 +1106,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
       </div>
 
       {/* ---------------- 6. MAIN ACTIVE QUESTION AREA ---------------- */}
-      <div className="bg-white border border-slate-200/90 rounded-3xl p-5 md:p-7 shadow-sm flex flex-col gap-5">
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-5 md:p-7 shadow-sm flex flex-col gap-5 print:hidden">
         
         {/* Header Soal & Indikator Beku */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">

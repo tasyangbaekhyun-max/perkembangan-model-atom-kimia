@@ -76,16 +76,19 @@
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 6mm;
   }
 
-  body {
+  html, body {
     background: #ffffff !important;
     padding: 0 !important;
     margin: 0 !important;
+    font-size: 11px !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  /* Sembunyikan semua elemen aplikasi di luar sertifikat saat mencetak */
+  /* Sembunyikan seluruh elemen lain di aplikasi */
   header,
   footer,
   nav,
@@ -93,14 +96,27 @@
     display: none !important;
   }
 
-  /* Targetkan kontainer sertifikat agar menjadi satu-satunya yang tercetak dan pas 1 halaman */
+  /* Pastikan hanya kontainer sertifikat yang tampil */
   #quiz-certificate-card {
     display: block !important;
+    position: relative !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
     box-shadow: none !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 auto !important;
+    padding: 18px 22px !important;
+    border: 3px solid #d97706 !important; /* amber-600 */
+    border-radius: 18px !important;
+    background: #ffffff !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Sembunyikan elemen kuis aktif di bawah saat mencetak */
+  .quiz-screen-only {
+    display: none !important;
   }
 }
