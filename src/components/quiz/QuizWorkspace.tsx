@@ -297,7 +297,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
           totalAttemptsMade: Object.values(updatedResponses).reduce((sum, r) => sum + r.attemptsCount, 0),
         }
         SyncService.saveFinalScoreLocally(historyItem)
-        learningProgressService.updateQuizScore(historyItem.firstAttemptScore, historyItem.attemptId)
+        learningProgressService.updateQuizScore(historyItem.firstAttemptScore, historyItem.attemptId, 'lokal')
         setScoreHistory(SyncService.loadScoreHistory())
       }
 
@@ -482,7 +482,10 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
     setSubmissionStatus(result.status)
     setBab4SyncMessage(result.message)
     if (result.status === 'terkirim') {
+      learningProgressService.updateQuizStatus('terkirim')
       setShowBab4PayloadModal(true)
+    } else {
+      learningProgressService.updateQuizStatus('gagal')
     }
   }
 
@@ -1021,6 +1024,16 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
                     </>
                   ) : (
                     <>
+                      {submissionStatus === 'menunggu kirim' && (
+                        <button
+                          disabled
+                          className="px-4 py-2 rounded-xl bg-amber-500 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 opacity-80 cursor-not-allowed"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Sedang Mengirim...</span>
+                        </button>
+                      )}
+
                       {submissionStatus === 'gagal' && (
                         <button
                           onClick={() => handleSendOrRetry(true)}

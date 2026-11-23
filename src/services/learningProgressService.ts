@@ -96,7 +96,7 @@ export interface StudentProgressSummary {
   quizScore: number | null // Skor Uji Konsep (0 s.d. 100)
   quizAttemptId?: string | null
   quizCompletedAt?: string | null
-  quizStatus?: 'terkirim' | 'lokal' | 'belum kuis'
+  quizStatus?: 'terkirim' | 'lokal' | 'belum kuis' | 'gagal'
 }
 
 type ProgressListener = (progress: StudentProgressSummary) => void
@@ -351,15 +351,33 @@ class LearningProgressService {
 
   /**
    * Memperbarui skor kuis evaluasi 25 soal di progres belajar siswa
+   * Default status kuis adalah 'lokal' sampai benar-benar berhasil disinkronkan ke server riset
    */
-  public updateQuizScore(score: number, attemptId: string): void {
+  public updateQuizScore(score: number, attemptId: string, status: 'terkirim' | 'lokal' | 'gagal' = 'lokal'): void {
     const current = this.loadCurrentProgress()
     const updated: StudentProgressSummary = {
       ...current,
       quizScore: score,
       quizAttemptId: attemptId,
       quizCompletedAt: new Date().toISOString(),
-      quizStatus: 'terkirim',
+      quizStatus: status,
+    }
+
+    this.saveCurrentProgress(updated)
+    this.syncToClassRegistry(updated)
+    this.syncToFirebase(updated)
+    this.notifyListeners(updated)
+  }
+
+  /**
+   * Memperbarui status pengiriman kuis siswa (terkirim / lokal / gagal)
+   */
+  public updateQuizStatus(status: 'terkirim' | 'lokal' | 'gagal'): void {
+    const current = this.loadCurrentProgress()
+    if (current.quizStatus === status) return
+    const updated: StudentProgressSummary = {
+      ...current,
+      quizStatus: status,
     }
 
     this.saveCurrentProgress(updated)
@@ -582,7 +600,11 @@ class LearningProgressService {
         const quizSnap = await getDocs(collection(db, 'quiz_submissions'))
         quizSnap.forEach((qd) => {
           const qdata = qd.data() as any
-          const score = typeof qdata.finalScore === 'number' ? qdata.finalScore : null
+          const score = typeof qdata.firstAttemptScore === 'number'
+            ? qdata.firstAttemptScore
+            : typeof qdata.finalScore === 'number'
+            ? qdata.finalScore
+            : null
           const email = (qdata.studentEmail || '').toLowerCase().trim()
           const name = (qdata.studentName || '').toLowerCase().trim()
 

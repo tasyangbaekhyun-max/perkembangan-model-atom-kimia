@@ -89,14 +89,31 @@ export class Bab4ApiService {
       throw new Error('Kontrak Bab 4: Payload pengiriman kuis tidak valid atau kosong.')
     }
 
-    // 1. Simpan secara nyata ke Firebase Cloud Firestore jika terhubung
+    // 1. Cek konektivitas jaringan pengguna (offline guard)
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      throw new Error('Jaringan offline: Perangkat tidak terhubung ke internet. Pengiriman kuis ditunda.')
+    }
+
+    let firestoreError: Error | null = null
+
+    // 2. Simpan secara nyata ke Firebase Cloud Firestore jika terhubung
     if (isFirebaseConfigured() && db) {
       try {
-        const docRef = await addDoc(collection(db, 'quiz_submissions'), {
-          ...payload,
-          firebaseRecordedAt: serverTimestamp(),
-          clientRecordedAt: new Date().toISOString(),
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('Batas waktu koneksi ke Cloud Firestore habis (Timeout 10s). Pengiriman ditunda.'))
+          }, 10000)
         })
+
+        const docRef = await Promise.race([
+          addDoc(collection(db, 'quiz_submissions'), {
+            ...payload,
+            firebaseRecordedAt: serverTimestamp(),
+            clientRecordedAt: new Date().toISOString(),
+          }),
+          timeoutPromise,
+        ])
+
         return {
           status: 'success',
           recordedAt: new Date().toISOString(),
@@ -104,12 +121,18 @@ export class Bab4ApiService {
           attemptId: payload.attemptId,
           message: 'Data evaluasi kuis berhasil disimpan secara nyata di Cloud Firestore.',
         }
-      } catch (firestoreErr) {
+      } catch (firestoreErr: any) {
+        firestoreError = firestoreErr instanceof Error ? firestoreErr : new Error(String(firestoreErr?.message || firestoreErr))
         console.warn('[Firebase] Gagal menyimpan evaluasi ke Cloud Firestore:', firestoreErr)
       }
+    } else if (!isFirebaseConfigured()) {
+      firestoreError = new Error('Firebase belum terkonfigurasi dengan benar di environment.')
+    } else {
+      firestoreError = new Error('Layanan Cloud Firestore belum terinisialisasi atau tidak tersedia.')
     }
 
-    // 2. Fallback REST API
+    // 3. Fallback REST API jika endpoint server tersedia
+    let restError: Error | null = null
     try {
       const res = await fetch(`${this.apiBaseUrl}/research/quiz-submissions`, {
         method: 'POST',
@@ -117,19 +140,25 @@ export class Bab4ApiService {
         body: JSON.stringify(payload),
       })
       if (res.ok) {
-        return (await res.json()) as Bab4QuizSubmissionResponse
+        const data = (await res.json()) as Bab4QuizSubmissionResponse
+        if (data && data.status === 'success') {
+          return data
+        }
+        restError = new Error(data?.message || 'Server API mengembalikan respons bukan sukses.')
+      } else {
+        restError = new Error(`Server API merespons dengan kode HTTP ${res.status}.`)
       }
-    } catch {
-      // Fallback offline queue
+    } catch (err: any) {
+      restError = err instanceof Error ? err : new Error(String(err?.message || err))
     }
 
-    return {
-      status: 'success',
-      recordedAt: new Date().toISOString(),
-      submissionId: payload.submissionId,
-      attemptId: payload.attemptId,
-      message: 'Data evaluasi berhasil tervalidasi dan siap disinkronkan ke basis data riset (Kontrak Bab 4).',
-    }
+    // JANGAN LAPORKAN SUKSES PALSU: Jika sampai di titik ini, pengiriman gagal dan data belum diterima server!
+    const finalErrorMessage =
+      firestoreError?.message ||
+      restError?.message ||
+      'Pengiriman data kuis ke server gagal atau tidak dapat dijangkau.'
+
+    throw new Error(finalErrorMessage)
   }
 
   /**

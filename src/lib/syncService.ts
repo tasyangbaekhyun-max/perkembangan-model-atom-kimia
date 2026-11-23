@@ -223,13 +223,29 @@ export class SyncService {
     }
     this.saveQueue(queue)
 
-    // 3. Catat ID akun pemohon saat request jaringan dilepas
+    // 3. Cek guard offline sebelum melakukan request jaringan
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const currentQueue = this.loadQueue()
+      const itemToUpdate = currentQueue.find((q) => q.attemptId === session.attemptId)
+      if (itemToUpdate) {
+        itemToUpdate.status = 'gagal'
+        itemToUpdate.errorMessage = 'Jaringan offline: Perangkat tidak terhubung ke internet.'
+        itemToUpdate.lastAttemptAt = new Date().toISOString()
+        this.saveQueue(currentQueue)
+      }
+      return {
+        status: 'gagal',
+        message: 'Perangkat sedang offline. Hasil kuis tetap tersimpan di antrean perangkat dan dapat dikirim kembali saat online.',
+      }
+    }
+
+    // 4. Catat ID akun pemohon saat request jaringan dilepas
     const requestAccountId = activeAccountId
 
     try {
       const res = await Bab4ApiService.submitQuizResults(payload)
 
-      // 4. ATURAN KRUSIAL: Abaikan respons request lama jika akun sudah berubah!
+      // 5. ATURAN KRUSIAL: Abaikan respons request lama jika akun sudah berubah!
       if (authService.getActiveAccountId() !== requestAccountId) {
         // Akun sudah beralih di tengah proses jaringan, abaikan respons!
         return {
@@ -238,11 +254,17 @@ export class SyncService {
         }
       }
 
-      // Update antrean pada ruang akun aktif
+      // Validasi ketat: Layanan API tidak boleh mengembalikan status berhasil saat gagal
+      if (!res || res.status !== 'success') {
+        throw new Error(res?.message || 'Pengiriman data kuis belum berhasil diterima server riset.')
+      }
+
+      // Update antrean pada ruang akun aktif HANYA jika server benar-benar menerima
       const currentQueue = this.loadQueue()
       const itemToUpdate = currentQueue.find((q) => q.attemptId === session.attemptId)
       if (itemToUpdate) {
         itemToUpdate.status = 'terkirim'
+        itemToUpdate.errorMessage = undefined
         itemToUpdate.lastAttemptAt = new Date().toISOString()
         this.saveQueue(currentQueue)
       }
@@ -260,6 +282,7 @@ export class SyncService {
         }
       }
 
+      // Pertahankan item di antrean dengan status "gagal" (belum terkirim)
       const currentQueue = this.loadQueue()
       const itemToUpdate = currentQueue.find((q) => q.attemptId === session.attemptId)
       if (itemToUpdate) {
@@ -274,6 +297,53 @@ export class SyncService {
         message: err?.message || 'Gagal mengirimkan hasil ke server. Tersedia tombol Coba Kirim Lagi.',
       }
     }
+  }
+
+  /**
+   * Menyinkronkan ulang seluruh antrean kuis yang tertunda/gagal pada akun aktif
+   */
+  public static async syncPendingQueue(): Promise<{
+    totalPending: number
+    synced: number
+    failed: number
+  }> {
+    const queue = this.loadQueue()
+    const pendingItems = queue.filter((q) => q.status === 'menunggu kirim' || q.status === 'gagal')
+
+    if (pendingItems.length === 0) {
+      return { totalPending: 0, synced: 0, failed: 0 }
+    }
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return { totalPending: pendingItems.length, synced: 0, failed: pendingItems.length }
+    }
+
+    let synced = 0
+    let failed = 0
+
+    for (const item of pendingItems) {
+      try {
+        const res = await Bab4ApiService.submitQuizResults(item.payload)
+        if (res && res.status === 'success') {
+          item.status = 'terkirim'
+          item.errorMessage = undefined
+          item.lastAttemptAt = new Date().toISOString()
+          synced++
+        } else {
+          item.status = 'gagal'
+          item.lastAttemptAt = new Date().toISOString()
+          failed++
+        }
+      } catch (err: any) {
+        item.status = 'gagal'
+        item.errorMessage = err?.message || 'Gagal sinkronisasi antrean.'
+        item.lastAttemptAt = new Date().toISOString()
+        failed++
+      }
+    }
+
+    this.saveQueue(queue)
+    return { totalPending: pendingItems.length, synced, failed }
   }
 
   /**
@@ -314,8 +384,10 @@ export class SyncService {
     try {
       const guestSessionKey = 'atomlab_acc_guest_active_session'
       const guestHistoryKey = 'atomlab_acc_guest_score_history'
+      const guestQueueKey = 'atomlab_acc_guest_submission_queue'
       const targetSessionKey = `atomlab_acc_${targetAccountId}_active_session`
       const targetHistoryKey = `atomlab_acc_${targetAccountId}_score_history`
+      const targetQueueKey = `atomlab_acc_${targetAccountId}_submission_queue`
 
       const rawSession = window.localStorage.getItem(guestSessionKey)
       if (rawSession) {
@@ -327,6 +399,30 @@ export class SyncService {
       if (rawHistory) {
         window.localStorage.setItem(targetHistoryKey, rawHistory)
         window.localStorage.removeItem(guestHistoryKey)
+      }
+
+      // Pindahkan antrean tertunda dari akun tamu ke akun login agar tidak hilang
+      const rawGuestQueue = window.localStorage.getItem(guestQueueKey)
+      if (rawGuestQueue) {
+        try {
+          const guestQueue = JSON.parse(rawGuestQueue)
+          if (Array.isArray(guestQueue) && guestQueue.length > 0) {
+            const rawTargetQueue = window.localStorage.getItem(targetQueueKey)
+            const targetQueue: SubmissionQueueItem[] = rawTargetQueue ? JSON.parse(rawTargetQueue) : []
+            const migratedQueue: SubmissionQueueItem[] = guestQueue.map((item: SubmissionQueueItem) => ({
+              ...item,
+              accountId: targetAccountId,
+            }))
+            const mergedQueue = [
+              ...migratedQueue,
+              ...targetQueue.filter((t) => !migratedQueue.some((m) => m.attemptId === t.attemptId)),
+            ]
+            window.localStorage.setItem(targetQueueKey, JSON.stringify(mergedQueue))
+          }
+        } catch {
+          // ignore
+        }
+        window.localStorage.removeItem(guestQueueKey)
       }
     } catch {
       // Fallback
