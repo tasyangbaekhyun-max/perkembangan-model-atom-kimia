@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Zap, Sparkles } from 'lucide-react'
 
 interface TransitionInfo {
@@ -17,6 +17,15 @@ export function BohrSimulator({ onComplete, isCompleted }: { onComplete?: () => 
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false)
   const [hasJumpedOnce, setHasJumpedOnce] = useState<boolean>(() => Boolean(isCompleted))
   const onCompleteCalledRef = useRef<boolean>(false)
+  const transitionTimeoutRef = useRef<any>(null)
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const energyLevels: Record<number, number> = {
     1: -13.6,
@@ -73,28 +82,41 @@ export function BohrSimulator({ onComplete, isCompleted }: { onComplete?: () => 
 
   const performBalmerJump = (fromOrbit: number) => {
     if (isTransitioning) return
+
+    // Bersihkan timeout transisi sebelumnya jika ada
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current)
+    }
+
+    const deltaE = Math.abs(energyLevels[2] - energyLevels[fromOrbit])
+    const balmer = balmerTransitions[fromOrbit]
+
+    // 1. Tempatkan elektron di orbit awal (n = fromOrbit)
     setCurrentOrbit(fromOrbit)
     setIsTransitioning(true)
     setHasJumpedOnce(true)
+
     if (!onCompleteCalledRef.current && !isCompleted) {
       onCompleteCalledRef.current = true
       onComplete?.()
     }
-    const deltaE = Math.abs(energyLevels[2] - energyLevels[fromOrbit])
-    const balmer = balmerTransitions[fromOrbit]
+
+    // Tampilkan informasi emisi foton Balmer yang tepat sesuai fromOrbit -> 2
     setTransitionMessage({
       from: fromOrbit,
       to: 2,
       colorName: balmer?.color || 'Foton Balmer',
-      wavelength: balmer?.nm || 486,
+      wavelength: balmer?.nm || Math.round(1240 / deltaE),
       energy: Number(deltaE.toFixed(2)),
       hexColor: balmer?.hex || '#0891b2',
       type: 'emission',
     })
-    setTimeout(() => {
+
+    // 2. Beri jeda visual agar elektron terlihat melompat turun menuju n = 2
+    transitionTimeoutRef.current = setTimeout(() => {
       setCurrentOrbit(2)
       setIsTransitioning(false)
-    }, 600)
+    }, 700)
   }
 
   return (
@@ -210,19 +232,19 @@ export function BohrSimulator({ onComplete, isCompleted }: { onComplete?: () => 
           <div className="relative w-full h-5 rounded-lg bg-slate-950 border border-slate-800 flex items-center overflow-hidden shadow-inner">
             {/* 656 nm Red */}
             <div
-              onClick={() => handleJump(3)}
+              onClick={() => performBalmerJump(3)}
               className="absolute left-[80%] h-full w-2 bg-red-500 shadow-[0_0_8px_#ef4444] cursor-pointer hover:w-3 transition-all"
               title="Garis H-α (656 nm): n=3 → n=2"
             />
             {/* 486 nm Cyan */}
             <div
-              onClick={() => handleJump(4)}
+              onClick={() => performBalmerJump(4)}
               className="absolute left-[50%] h-full w-2 bg-cyan-400 shadow-[0_0_8px_#22d3ee] cursor-pointer hover:w-3 transition-all"
               title="Garis H-β (486 nm): n=4 → n=2"
             />
             {/* 434 nm Blue */}
             <div
-              onClick={() => handleJump(5)}
+              onClick={() => performBalmerJump(5)}
               className="absolute left-[30%] h-full w-2 bg-blue-500 shadow-[0_0_8px_#3b82f6] cursor-pointer hover:w-3 transition-all"
               title="Garis H-γ (434 nm): n=5 → n=2"
             />
