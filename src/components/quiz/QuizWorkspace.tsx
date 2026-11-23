@@ -112,6 +112,16 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
   useEffect(() => {
     const unsubQuestions = learningContentService.subscribeQuestions((updated) => {
       setQuizQuestions(updated)
+      // Perbarui juga versi soal di sesi aktif jika belum dikerjakan / ada revisi
+      const currentVer = learningContentService.getQuestionVersion()
+      setSession((prev) => {
+        if (prev.questionVersion !== currentVer) {
+          const updatedSession = { ...prev, questionVersion: currentVer }
+          SyncService.saveDraftLocally(updatedSession)
+          return updatedSession
+        }
+        return prev
+      })
     })
 
     const unsubAuth = authService.onAuthStateChanged((access) => {
@@ -170,7 +180,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
   }
 
   const handleResetDefaultQuestions = () => {
-    if (window.confirm('Kembalikan bank soal kuis ke 10 butir soal standar bawaan?')) {
+    if (window.confirm('Kembalikan bank soal kuis ke 25 butir soal standar bawaan?')) {
       learningContentService.resetQuizQuestionsToDefault()
       updateSession((prev) => ({ ...prev, currentQuestionIndex: 0 }))
       setActionSuccessMessage('Bank soal berhasil direset ke standar bawaan.')
@@ -274,10 +284,11 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
 
       // Jika baru saja menyelesaikan seluruh soal, simpan ke riwayat skor final
       if (isCompleted && !prev.isCompleted) {
+        const activeVer = prev.questionVersion || learningContentService.getQuestionVersion() || QUESTION_SET_VERSION
         const historyItem: FinalScoreHistory = {
           attemptId: prev.attemptId,
           guestSessionId: prev.guestSessionId,
-          questionVersion: QUESTION_SET_VERSION,
+          questionVersion: activeVer,
           completedAt: new Date().toISOString(),
           totalQuestions,
           firstAttemptCorrectCount: correctFirstCount,
@@ -694,7 +705,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
             <button
               onClick={handleResetDefaultQuestions}
               className="px-2.5 py-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-bold text-xs cursor-pointer"
-              title="Reset ke 10 soal bawaan"
+              title="Reset ke 25 soal bawaan"
             >
               Reset Bawaan
             </button>
@@ -1760,6 +1771,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
                     attemptId: session.attemptId,
                     guestSessionId: session.guestSessionId,
                     questionVersion: session.questionVersion,
+                    totalQuestions: quizQuestions.length,
                     firstAttemptScore: session.firstAttemptScore,
                     masteryScore: session.masteryScore,
                     itemResponsesCount: Object.keys(session.itemResponses).length,

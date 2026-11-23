@@ -16,6 +16,7 @@ import type { QuizAttemptSession, FinalScoreHistory } from '../types/quiz'
 import type { Bab4QuizSubmissionPayload } from '../types/bab4Contract'
 import { Bab4ApiService } from '../services/bab4ApiService'
 import { QUESTION_SET_VERSION } from '../data/quizQuestions'
+import { learningContentService } from '../services/learningContentService'
 
 export class SyncService {
   private static getPartitionPrefix(): string {
@@ -165,14 +166,18 @@ export class SyncService {
     // Bentuk payload yang mematuhi Kontrak Bab 4
     // PENTING: Jangan menyalin token/email ke log atau UI hasil!
     const submissionId = `SUB-${Date.now()}-${session.attemptId.slice(-4)}`
+    const activeQuestions = learningContentService.getQuizQuestions()
+    const currentTotalQuestions = activeQuestions.length > 0 ? activeQuestions.length : 25
+    const currentQuestionVersion = session.questionVersion || learningContentService.getQuestionVersion() || QUESTION_SET_VERSION
+
     const payload: Bab4QuizSubmissionPayload = {
       submissionId,
       attemptId: session.attemptId, // Pertahankan satu ID percobaan ketika retry!
       guestSessionId: session.guestSessionId,
       userId: access.isAuthenticated ? access.userId : undefined,
       classCode: access.classCode,
-      questionVersion: session.questionVersion || QUESTION_SET_VERSION,
-      totalQuestions: 10,
+      questionVersion: currentQuestionVersion,
+      totalQuestions: currentTotalQuestions,
       firstAttemptScore: session.firstAttemptScore,
       masteryScore: session.masteryScore,
       totalAttemptsMade: Object.values(session.itemResponses).reduce((sum, r) => sum + r.attemptsCount, 0),
@@ -284,10 +289,11 @@ export class SyncService {
 
       const parsed = JSON.parse(raw) as QuizAttemptSession
       if (parsed && parsed.attemptId && Object.keys(parsed.itemResponses).length > 0) {
+        const activeQuestions = learningContentService.getQuizQuestions()
         return {
           guestSessionId: parsed.guestSessionId,
           attemptId: parsed.attemptId,
-          totalQuestions: 10,
+          totalQuestions: activeQuestions.length > 0 ? activeQuestions.length : 25,
           firstAttemptScore: parsed.firstAttemptScore,
           masteryScore: parsed.masteryScore,
           completedAt: parsed.completedAt,
@@ -350,11 +356,12 @@ export class SyncService {
     const accountId = authService.getActiveAccountId()
     const attemptId = `ATT-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
     const now = new Date().toISOString()
+    const activeVersion = learningContentService.getQuestionVersion() || QUESTION_SET_VERSION
 
     return {
       attemptId,
       guestSessionId: accountId === 'guest' ? `GST-${Date.now().toString(36)}` : accountId,
-      questionVersion: QUESTION_SET_VERSION,
+      questionVersion: activeVersion,
       createdAt: now,
       updatedAt: now,
       isCompleted: false,

@@ -6,13 +6,14 @@
  */
 
 import { ATOM_MODELS } from '../data/atomModels'
-import { QUIZ_QUESTIONS } from '../data/quizQuestions'
+import { QUIZ_QUESTIONS, QUESTION_SET_VERSION } from '../data/quizQuestions'
 import type { AtomModel } from '../types/atom'
 import type { QuizQuestion } from '../types/quiz'
 
 const STORAGE_KEYS = {
   MODELS: 'atomlab_custom_atom_models',
   QUESTIONS: 'atomlab_custom_quiz_questions',
+  QUESTIONS_VERSION: 'atomlab_quiz_questions_version',
 } as const
 
 type ContentListener<T> = (data: T) => void
@@ -39,8 +40,28 @@ class LearningContentService {
       if (!window.localStorage.getItem(STORAGE_KEYS.MODELS)) {
         window.localStorage.setItem(STORAGE_KEYS.MODELS, JSON.stringify(ATOM_MODELS))
       }
-      if (!window.localStorage.getItem(STORAGE_KEYS.QUESTIONS)) {
+      
+      const storedQuestionsRaw = window.localStorage.getItem(STORAGE_KEYS.QUESTIONS)
+      const storedVersion = window.localStorage.getItem(STORAGE_KEYS.QUESTIONS_VERSION)
+
+      // Jika belum ada soal atau data soal lama masih berisi 10 soal standar awal tanpa versi 25 soal
+      if (!storedQuestionsRaw) {
         window.localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(QUIZ_QUESTIONS))
+        window.localStorage.setItem(STORAGE_KEYS.QUESTIONS_VERSION, QUESTION_SET_VERSION)
+      } else {
+        try {
+          const parsed = JSON.parse(storedQuestionsRaw)
+          // Jika soal di localStorage masih versi lama (misal 10 soal) dan belum pernah diedit secara khusus
+          if (Array.isArray(parsed) && parsed.length < QUIZ_QUESTIONS.length && !storedVersion) {
+            window.localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(QUIZ_QUESTIONS))
+            window.localStorage.setItem(STORAGE_KEYS.QUESTIONS_VERSION, QUESTION_SET_VERSION)
+          } else if (!storedVersion) {
+            window.localStorage.setItem(STORAGE_KEYS.QUESTIONS_VERSION, QUESTION_SET_VERSION)
+          }
+        } catch {
+          window.localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(QUIZ_QUESTIONS))
+          window.localStorage.setItem(STORAGE_KEYS.QUESTIONS_VERSION, QUESTION_SET_VERSION)
+        }
       }
     } catch {
       // In-memory fallback
@@ -174,6 +195,33 @@ class LearningContentService {
   // =========================================================================
 
   /**
+   * Mengambil versi bank soal saat ini (termasuk tag revisi jika diedit)
+   */
+  public getQuestionVersion(): string {
+    if (!this.isStorageAvailable()) return QUESTION_SET_VERSION
+    return window.localStorage.getItem(STORAGE_KEYS.QUESTIONS_VERSION) || QUESTION_SET_VERSION
+  }
+
+  /**
+   * Memperbarui nomor versi soal saat terjadi perubahan (tambah/edit/hapus)
+   */
+  private bumpQuestionVersion(): string {
+    const currentVer = this.getQuestionVersion()
+    const nowTimestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase()
+    const newVersion = `${currentVer.split('-rev')[0]}-rev-${nowTimestamp}-${randomSuffix}`
+
+    if (this.isStorageAvailable()) {
+      try {
+        window.localStorage.setItem(STORAGE_KEYS.QUESTIONS_VERSION, newVersion)
+      } catch {
+        // Fallback
+      }
+    }
+    return newVersion
+  }
+
+  /**
    * Mengambil seluruh soal kuis (termasuk hasil kreasi/revisi guru)
    */
   public getQuizQuestions(): QuizQuestion[] {
@@ -227,6 +275,7 @@ class LearningContentService {
       }
     }
 
+    this.bumpQuestionVersion()
     this.notifyQuestionListeners(questions)
   }
 
@@ -255,6 +304,7 @@ class LearningContentService {
       }
     }
 
+    this.bumpQuestionVersion()
     this.notifyQuestionListeners(filtered)
     return { success: true }
   }
@@ -266,6 +316,7 @@ class LearningContentService {
     if (this.isStorageAvailable()) {
       try {
         window.localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(QUIZ_QUESTIONS))
+        window.localStorage.setItem(STORAGE_KEYS.QUESTIONS_VERSION, QUESTION_SET_VERSION)
       } catch {
         // Fallback
       }
