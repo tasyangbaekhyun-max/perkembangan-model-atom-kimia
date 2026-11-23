@@ -14,7 +14,8 @@ import {
   LogIn,
   GraduationCap,
   User,
-  BarChart3
+  BarChart3,
+  Menu
 } from 'lucide-react'
 import type { AtomModel } from './types/atom'
 import { learningContentService } from './services/learningContentService'
@@ -52,6 +53,7 @@ export default function App() {
   const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false)
   const [showGuestMigrationModal, setShowGuestMigrationModal] = useState<boolean>(false)
   const [showTeacherMonitoringModal, setShowTeacherMonitoringModal] = useState<boolean>(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false)
   const [guestSummary, setGuestSummary] = useState<GuestResultsSummary | null>(null)
   const [unsentCount, setUnsentCount] = useState<number>(0)
   const [confirmWipeData, setConfirmWipeData] = useState<boolean>(false)
@@ -388,8 +390,104 @@ export default function App() {
                 </button>
               </>
             )}
+
+            {/* Tombol Hamburger Menu untuk Layar Ponsel (< md / 375px) */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center cursor-pointer transition active:scale-95"
+              aria-label="Buka menu navigasi"
+              title="Menu Navigasi"
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5 text-indigo-600" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Panel Menu Navigasi Seluler Dropdown (Layar < 768px / 375px) */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden pt-3 pb-2 border-t border-slate-200 mt-2 flex flex-col gap-1.5 animate-fade-in">
+            <button
+              onClick={() => {
+                setCurrentView('home')
+                setIsMobileMenuOpen(false)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center gap-2.5 cursor-pointer ${
+                currentView === 'home'
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-black'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                <Atom className="w-3.5 h-3.5" />
+              </div>
+              <span>Beranda</span>
+            </button>
+
+            <button
+              onClick={() => {
+                navigateToTimelineWithModel()
+                setIsMobileMenuOpen(false)
+              }}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center gap-2.5 cursor-pointer ${
+                currentView === 'timeline'
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-black'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                <Clock className="w-3.5 h-3.5" />
+              </div>
+              <span>Model Atom (Alur Runtut)</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentView('comparison')
+                setIsMobileMenuOpen(false)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center gap-2.5 cursor-pointer ${
+                currentView === 'comparison'
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-black'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                <Layers className="w-3.5 h-3.5" />
+              </div>
+              <span>Tabel Perbandingan Antarmodel</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setCurrentView('quiz')
+                setIsMobileMenuOpen(false)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between cursor-pointer ${
+                currentView === 'quiz'
+                  ? 'bg-indigo-600 text-white font-black shadow-md shadow-indigo-600/20'
+                  : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                  currentView === 'quiz' ? 'bg-white/20 text-white' : 'bg-emerald-200 text-emerald-800'
+                }`}>
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </div>
+                <span>Uji Konsep Evaluasi</span>
+              </div>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                currentView === 'quiz' ? 'bg-white/25 text-white' : 'bg-emerald-100 text-emerald-800'
+              }`}>
+                25 Soal
+              </span>
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Main Dynamic View Content */}
