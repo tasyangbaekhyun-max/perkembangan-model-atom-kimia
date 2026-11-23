@@ -16,7 +16,7 @@ import type {
   Bab4TelemetryEvent,
 } from '../types/bab4Contract'
 import { db, isFirebaseConfigured } from '../lib/firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 
 export class Bab4ApiService {
   private static apiBaseUrl = '/api/v1'
@@ -97,6 +97,7 @@ export class Bab4ApiService {
     let firestoreError: Error | null = null
 
     // 2. Simpan secara nyata ke Firebase Cloud Firestore jika terhubung
+    // Menggunakan attemptId sebagai ID dokumen agar pengiriman ulang bersifat idempoten (tidak menghasilkan dokumen ganda)
     if (isFirebaseConfigured() && db) {
       try {
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -105,19 +106,26 @@ export class Bab4ApiService {
           }, 10000)
         })
 
-        const docRef = await Promise.race([
-          addDoc(collection(db, 'quiz_submissions'), {
-            ...payload,
-            firebaseRecordedAt: serverTimestamp(),
-            clientRecordedAt: new Date().toISOString(),
-          }),
+        const docRef = doc(db, 'quiz_submissions', payload.attemptId)
+
+        await Promise.race([
+          setDoc(
+            docRef,
+            {
+              ...payload,
+              firebaseRecordedAt: serverTimestamp(),
+              clientRecordedAt: new Date().toISOString(),
+              lastUpdatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          ),
           timeoutPromise,
         ])
 
         return {
           status: 'success',
           recordedAt: new Date().toISOString(),
-          submissionId: docRef.id || payload.submissionId,
+          submissionId: docRef.id || payload.attemptId,
           attemptId: payload.attemptId,
           message: 'Data evaluasi kuis berhasil disimpan secara nyata di Cloud Firestore.',
         }
