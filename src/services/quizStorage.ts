@@ -93,10 +93,7 @@ export function createNewAttemptSession(): QuizAttemptSession {
     updatedAt: now,
     isCompleted: false,
     currentQuestionIndex: 0,
-    draftAnswers: {
-      // Default initial order for question 8 (drag and drop timeline)
-      8: ['ord_rutherford', 'ord_dalton', 'ord_quantum', 'ord_democritus', 'ord_bohr', 'ord_thomson'],
-    },
+    draftAnswers: {},
     frozenQuestions: {},
     itemResponses: {},
     firstAttemptScore: 0,
@@ -316,9 +313,7 @@ export function resetCurrentAttemptDraftOnly(currentAttemptId: string): StorageO
     updatedAt: new Date().toISOString(),
     isCompleted: false,
     currentQuestionIndex: 0,
-    draftAnswers: {
-      8: ['ord_rutherford', 'ord_dalton', 'ord_quantum', 'ord_democritus', 'ord_bohr', 'ord_thomson'],
-    },
+    draftAnswers: {},
     frozenQuestions: {},
     itemResponses: {},
     firstAttemptScore: 0,
@@ -339,7 +334,8 @@ export function startNewAttemptWithNewId(): StorageOperationResult<QuizAttemptSe
 
 /**
  * HAPUS SELURUH RIWAYAT PERANGKAT:
- * Menghapus sesi aktif, riwayat skor, dan ID tamu dari localStorage.
+ * Menghapus seluruh sesi aktif, riwayat skor, antrean pengiriman, dan ID tamu dari localStorage
+ * (baik kunci partisi aktif atomlab_acc_* maupun kunci Lampiran B).
  * Memerlukan konfirmasi pengguna terpisah.
  */
 export function clearAllDeviceHistory(): StorageOperationResult<void> {
@@ -351,9 +347,20 @@ export function clearAllDeviceHistory(): StorageOperationResult<void> {
   }
 
   try {
-    window.localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION)
-    window.localStorage.removeItem(STORAGE_KEYS.FINAL_HISTORY)
-    window.localStorage.removeItem(STORAGE_KEYS.GUEST_ID)
+    const keysToRemove: string[] = []
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i)
+      if (!key) continue
+      if (
+        key.endsWith('_active_session') ||
+        key.endsWith('_score_history') ||
+        key.endsWith('_submission_queue') ||
+        key.startsWith('atomlab_lampiran_b_')
+      ) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach((k) => window.localStorage.removeItem(k))
     return { success: true, isFallbackMemory: false }
   } catch (err: any) {
     return {

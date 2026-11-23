@@ -430,9 +430,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
     const fresh: QuizAttemptSession = {
       ...session,
       currentQuestionIndex: 0,
-      draftAnswers: {
-        8: ['ord_rutherford', 'ord_dalton', 'ord_quantum', 'ord_democritus', 'ord_bohr', 'ord_thomson'],
-      },
+      draftAnswers: {},
       frozenQuestions: {},
       itemResponses: {},
       firstAttemptScore: 0,
@@ -459,6 +457,8 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
   // Eksekusi Hapus Seluruh Riwayat Perangkat
   const confirmClearAllDeviceHistory = () => {
     clearAllDeviceHistory()
+    SyncService.clearAllQuizStorage()
+    learningProgressService.resetQuizProgress()
     const fresh = SyncService.createInitialSession()
     SyncService.saveDraftLocally(fresh)
     setSession(fresh)

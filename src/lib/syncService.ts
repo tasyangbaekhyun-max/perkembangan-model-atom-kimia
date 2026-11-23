@@ -446,6 +446,36 @@ export class SyncService {
   }
 
   /**
+   * Membersihkan seluruh data kuis aktif dari localStorage:
+   * - Sesi kuis aktif (seluruh partisi atomlab_acc_*_active_session)
+   * - Riwayat skor (seluruh partisi atomlab_acc_*_score_history)
+   * - Antrean pengiriman/sinkronisasi (seluruh partisi atomlab_acc_*_submission_queue)
+   * - Kunci penyimpanan Lampiran B (atomlab_lampiran_b_*)
+   */
+  public static clearAllQuizStorage(): void {
+    if (typeof window === 'undefined') return
+
+    try {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i)
+        if (!key) continue
+        if (
+          key.endsWith('_active_session') ||
+          key.endsWith('_score_history') ||
+          key.endsWith('_submission_queue') ||
+          key.startsWith('atomlab_lampiran_b_')
+        ) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach((k) => window.localStorage.removeItem(k))
+    } catch {
+      // Fallback
+    }
+  }
+
+  /**
    * Membuat sesi inisial baru dengan ID Percobaan baru
    */
   public static createInitialSession(): QuizAttemptSession {
@@ -462,9 +492,7 @@ export class SyncService {
       updatedAt: now,
       isCompleted: false,
       currentQuestionIndex: 0,
-      draftAnswers: {
-        8: ['ord_rutherford', 'ord_dalton', 'ord_quantum', 'ord_democritus', 'ord_bohr', 'ord_thomson'],
-      },
+      draftAnswers: {},
       frozenQuestions: {},
       itemResponses: {},
       firstAttemptScore: 0,

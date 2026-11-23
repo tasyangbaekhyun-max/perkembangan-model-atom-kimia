@@ -387,6 +387,25 @@ class LearningProgressService {
   }
 
   /**
+   * Mereset data progres evaluasi kuis siswa saat seluruh riwayat kuis perangkat dihapus
+   */
+  public resetQuizProgress(): void {
+    const current = this.loadCurrentProgress()
+    const updated: StudentProgressSummary = {
+      ...current,
+      quizScore: null,
+      quizAttemptId: null,
+      quizCompletedAt: null,
+      quizStatus: 'belum kuis',
+    }
+
+    this.saveCurrentProgress(updated)
+    this.syncToClassRegistry(updated)
+    this.syncToFirebase(updated)
+    this.notifyListeners(updated)
+  }
+
+  /**
    * Menyimpan ke registri kelas lokal untuk diakses Mode Guru
    */
   public syncToClassRegistry(student: StudentProgressSummary): void {
