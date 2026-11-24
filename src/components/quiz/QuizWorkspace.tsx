@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   CheckCircle2,
   AlertCircle,
@@ -491,24 +491,40 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
 
   // Pengiriman / Kirim Ulang Hasil Kuis ke Basis Data Riset Bab 4
   // Sesuai aturan: "Pertahankan satu ID percobaan ketika retry; percobaan baru memakai ID baru"
-  const handleSendOrRetry = async (isRetry = false) => {
+  const handleSendOrRetry = async (isRetry = false, sessionToSubmit?: QuizAttemptSession, isAutoSubmit = false) => {
+    const targetSession = sessionToSubmit || session
     setSubmissionStatus('menunggu kirim')
     setBab4SyncMessage(
       isRetry
-        ? `Mencoba kirim ulang dengan ID percobaan tetap: ${session.attemptId}...`
+        ? `Mencoba kirim ulang dengan ID percobaan tetap: ${targetSession.attemptId}...`
         : 'Menyimpan draf lokal dan mengirimkan berkas riset Bab 4...'
     )
 
-    const result = await SyncService.submitQuizAttempt(session, isRetry)
+    const result = await SyncService.submitQuizAttempt(targetSession, isRetry)
     setSubmissionStatus(result.status)
     setBab4SyncMessage(result.message)
     if (result.status === 'terkirim') {
       learningProgressService.updateQuizStatus('terkirim')
-      setShowBab4PayloadModal(true)
+      // Tampilkan popup payload hanya jika diklik manual oleh pengguna, bukan auto-submit agar tidak mengagetkan siswa
+      if (!isAutoSubmit) {
+        setShowBab4PayloadModal(true)
+      }
     } else {
       learningProgressService.updateQuizStatus('gagal')
     }
   }
+
+  // Ref untuk menandai attemptId yang sudah di-auto-submit agar tidak berulang
+  const autoSubmittedAttemptRef = useRef<string | null>(null)
+
+  // Otomatis kirim ke server (Cloud Firestore / Bab 4) saat asesmen tuntas
+  useEffect(() => {
+    if (session.isCompleted && autoSubmittedAttemptRef.current !== session.attemptId) {
+      autoSubmittedAttemptRef.current = session.attemptId
+      // Trigger pengiriman otomatis ke server di latar belakang
+      handleSendOrRetry(false, session, true)
+    }
+  }, [session.isCompleted, session.attemptId])
 
   // Aksesibilitas Keyboard
   useEffect(() => {
@@ -978,7 +994,7 @@ export function QuizWorkspace({ onBackToHome, embedded = false, onOpenGoogleLogi
                     Sesi Asesmen Telah Lengkap Dikerjakan
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Anda dapat mencetak sertifikat di atas, menyimpan salinan data riset, atau memulai sesi percobaan baru.
+                    Hasil dan sertifikat otomatis tersinkronisasi ke server. Anda dapat mencetak sertifikat di atas atau memulai sesi percobaan baru.
                   </p>
                 </div>
                 <button
