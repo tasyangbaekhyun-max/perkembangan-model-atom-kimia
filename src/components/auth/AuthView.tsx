@@ -30,6 +30,8 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
   const [classCode, setClassCode] = useState('KIM-X-FASE-E')
   const [role, setRole] = useState<'student' | 'teacher'>('student')
   const [lockedRole, setLockedRole] = useState<'student' | 'teacher' | null>(null)
+  const [teacherPasskey, setTeacherPasskey] = useState('')
+  const [showTeacherPasskey, setShowTeacherPasskey] = useState(false)
   const [rememberDevice, setRememberDevice] = useState(true)
 
   // Password visibility
@@ -138,6 +140,22 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
     if (password !== confirmPassword) {
       setErrorMessage('Konfirmasi kata sandi tidak cocok. Harap periksa kembali.')
       return
+    }
+
+    // Verifikasi Keamanan Khusus Mode Guru
+    if (role === 'teacher') {
+      const trimmedTeacherPasskey = teacherPasskey.trim()
+      if (!trimmedTeacherPasskey) {
+        setErrorMessage('Sandi Verifikasi Guru wajib diisi. Silakan cek sandi resmi di Buku Panduan Guru.')
+        return
+      }
+
+      if (trimmedTeacherPasskey !== '1945IndonesiaMerdeka') {
+        setErrorMessage(
+          'Akses Ditolak: Sandi Verifikasi Guru salah! Jika Anda seorang murid, silakan daftar atau masuk sebagai murid saja. Jika Anda seorang guru, pastikan memasukkan sandi verifikasi resmi yang telah disediakan di Buku Panduan Guru.'
+        )
+        return
+      }
     }
 
     setIsLoading(true)
@@ -504,7 +522,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
             </div>
 
             {/* Alert Messages (Error / Success) */}
-            {errorMessage && (
+            {errorMessage && !errorMessage.includes('Sandi Verifikasi Guru') && (
               <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2.5 animate-shake">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
                 <div className="flex-1 space-y-2">
@@ -735,6 +753,72 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                     className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 uppercase focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                   />
                 </div>
+
+                {/* Kolom Khusus SANDI VERIFIKASI GURU (Hanya Tampil Jika Mode Guru) */}
+                {role === 'teacher' && (
+                  <div className="p-3.5 rounded-2xl bg-amber-50/90 border-2 border-amber-300/80 shadow-xs flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                        <span>🔐 Sandi Verifikasi Guru</span>
+                        <span className="text-[10px] text-rose-600 font-bold">*Wajib</span>
+                      </label>
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-100/90 px-2 py-0.5 rounded-md">
+                        Cek Buku Panduan
+                      </span>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type={showTeacherPasskey ? 'text' : 'password'}
+                        value={teacherPasskey}
+                        onChange={(e) => {
+                          setTeacherPasskey(e.target.value)
+                          if (errorMessage?.includes('Sandi Verifikasi Guru')) {
+                            setErrorMessage(null)
+                          }
+                        }}
+                        placeholder="Masukkan sandi verifikasi guru resmi"
+                        required
+                        className={`w-full px-4 py-2.5 pr-11 rounded-xl border font-medium text-slate-900 text-sm placeholder:text-amber-700/50 focus:outline-none transition bg-white ${
+                          errorMessage?.includes('Sandi Verifikasi Guru')
+                            ? 'border-rose-500 ring-2 ring-rose-200'
+                            : 'border-amber-300 focus:border-amber-500 focus:ring-3 focus:ring-amber-200'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowTeacherPasskey(!showTeacherPasskey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-700/60 hover:text-amber-900 cursor-pointer p-1"
+                        title={showTeacherPasskey ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
+                      >
+                        {showTeacherPasskey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    {/* WARNING TEPAT DI BAWAH KOLOM SANDI VERIFIKASI GURU */}
+                    {errorMessage && errorMessage.includes('Sandi Verifikasi Guru') ? (
+                      <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2 animate-shake">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1 leading-relaxed">
+                          <p>{errorMessage}</p>
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={handleRegisterAsStudent}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] shadow-xs cursor-pointer transition"
+                            >
+                              <span>👉 Beralih &amp; Daftar Sebagai Murid Saja</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-amber-800 font-medium leading-tight">
+                        Sandi verifikasi khusus ini diberikan hanya kepada Guru Pengampu di Buku Panduan untuk mencegah siswa menyamar.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Tombol Daftar */}
                 <button
