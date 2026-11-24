@@ -168,10 +168,10 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50/40 text-slate-800 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#fff9f6] text-slate-800 flex flex-col font-sans selection:bg-rose-500 selection:text-white">
       
       {/* Top Navbar */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-slate-200/80 px-4 lg:px-8 py-3 shadow-xs">
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-rose-100/90 px-4 lg:px-8 py-3 shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div
             onClick={() => {
@@ -180,15 +180,15 @@ export default function App() {
             }}
             className="flex items-center gap-3 cursor-pointer group select-none"
           >
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-500/25 text-white group-hover:scale-105 transition-transform">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 via-pink-500 to-amber-500 flex items-center justify-center shadow-md shadow-rose-500/25 text-white group-hover:scale-105 transition-transform">
               <Atom className="w-6 h-6 animate-spin-slow" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-rose-600 via-pink-600 to-amber-600 bg-clip-text text-transparent">
                   AtomLab
                 </span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-bold">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200/80 font-bold">
                   Fase E • Kimia SMA
                 </span>
               </div>
@@ -197,7 +197,7 @@ export default function App() {
           </div>
 
           {/* Center Navigation Pills */}
-          <nav className="hidden md:flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
+          <nav className="hidden md:flex items-center gap-1.5 bg-rose-50/60 p-1 rounded-2xl border border-rose-100/80 text-xs font-bold">
             <button
               onClick={() => {
                 setCurrentView('home')
@@ -205,7 +205,7 @@ export default function App() {
               }}
               className={`px-3.5 py-1.5 rounded-xl transition cursor-pointer ${
                 currentView === 'home'
-                  ? 'bg-white text-indigo-700 shadow-xs'
+                  ? 'bg-white text-rose-600 shadow-xs border border-rose-200/60'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -215,7 +215,7 @@ export default function App() {
               onClick={() => navigateToTimelineWithModel()}
               className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
                 currentView === 'timeline'
-                  ? 'bg-white text-indigo-700 shadow-xs'
+                  ? 'bg-white text-rose-600 shadow-xs border border-rose-200/60'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -229,7 +229,7 @@ export default function App() {
               }}
               className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
                 currentView === 'comparison'
-                  ? 'bg-white text-indigo-700 shadow-xs'
+                  ? 'bg-white text-rose-600 shadow-xs border border-rose-200/60'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -243,7 +243,7 @@ export default function App() {
               }}
               className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
                 currentView === 'quiz'
-                  ? 'bg-white text-indigo-700 shadow-xs'
+                  ? 'bg-white text-rose-600 shadow-xs border border-rose-200/60'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -258,15 +258,15 @@ export default function App() {
             {/* Indikator Mode & Tombol Alih Peran (Guru vs Siswa) */}
             <div className="flex items-center gap-1.5">
               {userAccess.role === 'teacher' ? (
-                <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-xl">
-                  <span className="flex items-center gap-1 text-xs font-black text-indigo-800">
-                    <GraduationCap className="w-4 h-4 text-indigo-600" />
+                <div className="flex items-center gap-1.5 bg-amber-50/80 border border-amber-200 px-2.5 py-1 rounded-xl">
+                  <span className="flex items-center gap-1 text-xs font-black text-amber-900">
+                    <GraduationCap className="w-4 h-4 text-amber-600" />
                     <span>Mode Guru</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => authService.setPreviewRole('student')}
-                    className="ml-1 text-[10px] font-bold bg-white hover:bg-slate-50 text-indigo-700 px-2 py-0.5 rounded-lg border border-indigo-200 shadow-2xs cursor-pointer transition"
+                    className="ml-1 text-[10px] font-bold bg-white hover:bg-slate-50 text-amber-800 px-2 py-0.5 rounded-lg border border-amber-200 shadow-2xs cursor-pointer transition"
                     title="Uji coba tampilan dari sudut pandang siswa (Lock Materi aktif)"
                   >
                     Pratinjau Siswa
@@ -287,8 +287,8 @@ export default function App() {
                   </button>
                 </div>
               ) : userAccess.role === 'student' ? (
-                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-xl">
-                  <span className="flex items-center gap-1 text-xs font-bold text-blue-700">
+                <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-xl">
+                  <span className="flex items-center gap-1 text-xs font-bold text-rose-700">
                     <User className="w-3.5 h-3.5" />
                     <span>Mode Siswa</span>
                   </span>
@@ -296,7 +296,7 @@ export default function App() {
               ) : (
                 /* Mode Tamu */
                 <div className="flex items-center gap-1.5">
-                  <span className="hidden lg:inline-flex px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold">
+                  <span className="hidden lg:inline-flex px-2.5 py-1 rounded-xl bg-rose-50/70 border border-rose-100 text-slate-700 text-xs font-semibold">
                     {authService.getPreviewRole() === 'teacher' ? '🎓 Mode Guru (Uji Coba)' : 'Mode Tamu (Siswa)'}
                   </span>
                   <button
@@ -306,8 +306,8 @@ export default function App() {
                     }}
                     className={`text-[10px] font-bold px-2 py-1 rounded-xl border transition cursor-pointer ${
                       authService.getPreviewRole() === 'teacher'
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                        : 'bg-white hover:bg-indigo-50 text-indigo-700 border-indigo-200 shadow-2xs'
+                        ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                        : 'bg-white hover:bg-rose-50/60 text-slate-700 border-rose-200 shadow-2xs'
                     }`}
                     title="Beralih peran untuk mencoba hak akses guru / siswa secara langsung"
                   >
@@ -322,11 +322,11 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowTeacherMonitoringModal(true)}
-                className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                 title="Buka panel pemantauan rekapitulasi poin eksplorasi (0-600 XP) dan skor kuis siswa"
               >
                 <BarChart3 className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Dasbor Guru (XP & Skor)</span>
+                <span className="hidden md:inline">Dasbor Guru (XP &amp; Skor)</span>
                 <span className="md:hidden">Dasbor Guru</span>
               </button>
             )}
@@ -339,7 +339,7 @@ export default function App() {
                     setCurrentView('auth')
                     window.scrollTo({ top: 0, behavior: 'smooth' })
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-98"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition active:scale-98"
                 >
                   <LogIn className="w-3.5 h-3.5" />
                   <span>Masuk / Daftar</span>
@@ -348,7 +348,7 @@ export default function App() {
                 {/* Tombol Masuk dengan Google */}
                 <button
                   onClick={() => setShowGoogleLoginModal(true)}
-                  className="hidden sm:flex px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-xs items-center gap-2 cursor-pointer transition hover:border-indigo-400"
+                  className="hidden sm:flex px-3.5 py-1.5 rounded-xl bg-white hover:bg-rose-50/50 text-slate-800 font-bold text-xs border border-rose-200/80 shadow-xs items-center gap-2 cursor-pointer transition hover:border-rose-400"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path
@@ -374,8 +374,8 @@ export default function App() {
             ) : (
               <>
                 {/* Akun kelas memakai alias dari getAccess */}
-                <span className="hidden sm:inline-flex px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-bold items-center gap-1.5 shadow-2xs">
-                  <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="hidden sm:inline-flex px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-bold items-center gap-1.5 shadow-2xs">
+                  <UserCheck className="w-3.5 h-3.5 text-rose-600" />
                   <span>{userAccess.alias}</span>
                 </span>
 
@@ -406,7 +406,7 @@ export default function App() {
 
         {/* Panel Menu Navigasi Seluler Dropdown (Layar < 768px / 375px) */}
         {isMobileMenuOpen && (
-          <div className="md:hidden pt-3 pb-2 border-t border-slate-200 mt-2 flex flex-col gap-1.5 animate-fade-in">
+          <div className="md:hidden pt-3 pb-2 border-t border-rose-100 mt-2 flex flex-col gap-1.5 animate-fade-in">
             <button
               onClick={() => {
                 setCurrentView('home')
@@ -415,11 +415,11 @@ export default function App() {
               }}
               className={`w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center gap-2.5 cursor-pointer ${
                 currentView === 'home'
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-black'
-                  : 'text-slate-700 hover:bg-slate-50'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200 font-black'
+                  : 'text-slate-700 hover:bg-rose-50/50'
               }`}
             >
-              <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+              <div className="w-6 h-6 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
                 <Atom className="w-3.5 h-3.5" />
               </div>
               <span>Beranda</span>
@@ -432,11 +432,11 @@ export default function App() {
               }}
               className={`w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center gap-2.5 cursor-pointer ${
                 currentView === 'timeline'
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-black'
-                  : 'text-slate-700 hover:bg-slate-50'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200 font-black'
+                  : 'text-slate-700 hover:bg-rose-50/50'
               }`}
             >
-              <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+              <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                 <Clock className="w-3.5 h-3.5" />
               </div>
               <span>Model Atom (Alur Runtut)</span>
@@ -450,8 +450,8 @@ export default function App() {
               }}
               className={`w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center gap-2.5 cursor-pointer ${
                 currentView === 'comparison'
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-black'
-                  : 'text-slate-700 hover:bg-slate-50'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200 font-black'
+                  : 'text-slate-700 hover:bg-rose-50/50'
               }`}
             >
               <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
@@ -468,7 +468,7 @@ export default function App() {
               }}
               className={`w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between cursor-pointer ${
                 currentView === 'quiz'
-                  ? 'bg-indigo-600 text-white font-black shadow-md shadow-indigo-600/20'
+                  ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black shadow-md shadow-rose-500/20'
                   : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
               }`}
             >
@@ -558,13 +558,13 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white mt-12 py-8 px-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-rose-100 bg-white/80 mt-12 py-8 px-4 text-center text-xs text-slate-500">
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-3">
           <button
             onClick={() => setShowGlobalBibliographyModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-xs transition shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100/70 text-rose-800 border border-rose-200/80 font-bold text-xs transition shadow-xs cursor-pointer"
           >
-            <Library className="w-4 h-4 text-indigo-600" />
+            <Library className="w-4 h-4 text-rose-600" />
             <span>Lihat Daftar Pustaka Lengkap Seluruh Web ({atomModels.reduce((acc, m) => acc + (m.references?.length || 0), 0)} Sumber Terverifikasi)</span>
           </button>
           <p className="font-semibold text-slate-600">© 2026 Web Pembelajaran Model-Model Atom (AtomLab) • Dirancang untuk Siswa SMA Kelas X (Fase E)</p>

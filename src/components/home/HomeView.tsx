@@ -34,14 +34,14 @@ export function HomeView({
       
       {/* Informational Guest Mode Notification */}
       {!isAuthenticated && onOpenAuth && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50/80 border border-blue-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+        <div className="bg-gradient-to-r from-rose-50/90 to-amber-50/80 border border-rose-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center shrink-0 shadow-sm">
               <Atom className="w-5 h-5" />
             </div>
             <div>
               <p className="text-xs font-bold text-slate-800">
-                Anda sedang belajar dalam <span className="text-blue-700 font-extrabold">Mode Tamu (Belajar Bebas)</span>
+                Anda sedang belajar dalam <span className="text-rose-600 font-extrabold">Mode Tamu (Belajar Bebas)</span>
               </p>
               <p className="text-[11px] text-slate-500 font-medium">
                 Masuk atau daftar dengan Google / Email untuk mencatat skor dan evaluasi kuis ke dasbor kelas kimia Anda.
@@ -50,7 +50,7 @@ export function HomeView({
           </div>
           <button
             onClick={onOpenAuth}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition shrink-0 cursor-pointer active:scale-98"
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-bold text-xs shadow-sm transition shrink-0 cursor-pointer active:scale-98"
           >
             Masuk / Buat Akun Baru
           </button>
@@ -58,24 +58,24 @@ export function HomeView({
       )}
       
       {/* Hero Welcome Banner */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 text-white p-7 md:p-12 shadow-xl shadow-indigo-500/15">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 text-white p-7 md:p-12 shadow-xl shadow-rose-500/15">
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-24 w-80 h-80 bg-cyan-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 -mb-24 w-80 h-80 bg-amber-200/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-xs text-white text-xs font-bold mb-4 border border-white/30 shadow-xs">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-200" />
             Media Belajar Interaktif Kimia SMA Kelas X (Fase E)
           </div>
 
           <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white mb-4 leading-tight drop-shadow-xs">
             Jelajahi Misteri Atom{' '}
-            <span className="text-cyan-200">
-              Secara Nyata & Ilmiah
+            <span className="text-amber-200">
+              Secara Nyata &amp; Ilmiah
             </span>
           </h1>
 
-          <p className="text-indigo-100 text-sm md:text-base leading-relaxed mb-8 max-w-2xl font-medium">
+          <p className="text-rose-50 text-sm md:text-base leading-relaxed mb-8 max-w-2xl font-medium">
             Selamat datang di <strong>AtomLab</strong>! Platform belajar kimia interaktif berbasis sejarah sains dan multipel representasi (makroskopik, submikroskopik, dan simbolik) yang dirancang untuk mencegah miskonsepsi.
           </p>
 
@@ -83,18 +83,18 @@ export function HomeView({
             {/* Main Primary Button requested by the user */}
             <button
               onClick={onNavigateToTimeline}
-              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm transition flex items-center gap-2.5 shadow-lg shadow-amber-500/30 active:scale-98 cursor-pointer"
+              className="px-6 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-sm transition flex items-center gap-2.5 shadow-lg shadow-slate-950/20 active:scale-98 cursor-pointer"
             >
-              <Clock className="w-4 h-4 text-slate-950" />
+              <Clock className="w-4 h-4 text-amber-300" />
               <span>Mulai Alur Belajar Model Atom (Runtut dari Awal)</span>
-              <ArrowRight className="w-4 h-4 text-slate-950" />
+              <ArrowRight className="w-4 h-4 text-amber-300" />
             </button>
 
             <button
               onClick={onNavigateToComparison}
-              className="px-5 py-3.5 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-sm backdrop-blur-xs transition border border-white/30 flex items-center gap-2 cursor-pointer"
+              className="px-5 py-3.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-bold text-sm backdrop-blur-xs transition border border-white/30 flex items-center gap-2 cursor-pointer"
             >
-              <Layers className="w-4 h-4 text-cyan-200" />
+              <Layers className="w-4 h-4 text-amber-200" />
               Tabel Perbandingan
             </button>
           </div>
@@ -102,10 +102,10 @@ export function HomeView({
       </section>
 
       {/* 3 Levels of Representation Chemistry Pillar Cards */}
-      <section className="bg-white border border-slate-200/80 rounded-3xl p-6 md:p-8 shadow-xs flex flex-col gap-5">
+      <section className="bg-white/90 border border-rose-100/90 rounded-3xl p-6 md:p-8 shadow-xs flex flex-col gap-5">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold mb-1">
-            <Award className="w-3.5 h-3.5" /> Pendekatan Pedagogis Kimia
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-bold mb-1 border border-rose-200/60">
+            <Award className="w-3.5 h-3.5 text-amber-500" /> Pendekatan Pedagogis Kimia
           </div>
           <h3 className="text-xl font-black text-slate-900 tracking-tight">
             3 Tingkat Representasi Kimia (Johnstone)
@@ -116,22 +116,22 @@ export function HomeView({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200/70 flex flex-col gap-2">
-            <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/70 flex flex-col gap-2">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
               <Eye className="w-4 h-4" />
             </div>
-            <h4 className="text-xs font-black text-sky-900 uppercase">1. Makroskopik</h4>
-            <p className="text-xs text-sky-950 font-medium leading-relaxed">
+            <h4 className="text-xs font-black text-amber-900 uppercase">1. Makroskopik</h4>
+            <p className="text-xs text-amber-950 font-medium leading-relaxed">
               Fenomena nyata di laboratorium yang dapat diamati panca indera, seperti nyala spektrum gas dan belokan sinar katoda.
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/70 flex flex-col gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+          <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200/70 flex flex-col gap-2">
+            <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
               <Atom className="w-4 h-4" />
             </div>
-            <h4 className="text-xs font-black text-emerald-900 uppercase">2. Submikroskopik</h4>
-            <p className="text-xs text-emerald-950 font-medium leading-relaxed">
+            <h4 className="text-xs font-black text-rose-900 uppercase">2. Submikroskopik</h4>
+            <p className="text-xs text-rose-950 font-medium leading-relaxed">
               Tingkat partikel tak kasat mata: bagaimana inti, elektron, dan orbital probabilitas tersusun dalam atom.
             </p>
           </div>
@@ -149,11 +149,11 @@ export function HomeView({
       </section>
 
       {/* Daftar Pustaka & Landasan Akademik Terpercaya */}
-      <section className="bg-white border border-slate-200/90 rounded-3xl p-6 md:p-8 shadow-xs flex flex-col gap-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+      <section className="bg-white/90 border border-rose-100/90 rounded-3xl p-6 md:p-8 shadow-xs flex flex-col gap-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-rose-100/80">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold mb-1">
-              <Library className="w-3.5 h-3.5" /> Standar Keilmuan &amp; Akurasi Materi
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-bold mb-1 border border-rose-200/60">
+              <Library className="w-3.5 h-3.5 text-rose-600" /> Standar Keilmuan &amp; Akurasi Materi
             </div>
             <h3 className="text-xl font-black text-slate-900 tracking-tight">
               Daftar Pustaka &amp; Rujukan Akademik Utama

@@ -21,17 +21,17 @@ export function ComparisonView({ onBackToHome, onSelectModel }: ComparisonViewPr
   return (
     <div className="flex flex-col gap-6 w-full animate-fade-in">
       {/* Top Header Navigation */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+      <div className="flex items-center justify-between pb-4 border-b border-rose-100">
         <button
           onClick={onBackToHome}
-          className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition border border-slate-200 flex items-center gap-2 shadow-xs cursor-pointer"
+          className="px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50/60 text-slate-700 font-bold text-xs transition border border-rose-200/80 flex items-center gap-2 shadow-xs cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4 text-slate-600" />
+          <ArrowLeft className="w-4 h-4 text-rose-600" />
           <span>Kembali ke Beranda</span>
         </button>
 
-        <div className="flex items-center gap-2 text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">
-          <Layers className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-2 text-xs font-bold text-rose-700 bg-rose-50 px-3 py-1 rounded-full border border-rose-200">
+          <Layers className="w-3.5 h-3.5 text-rose-600" />
           <span>Komparasi Antarmodel Lengkap</span>
         </div>
       </div>
@@ -93,7 +93,7 @@ export function ComparisonView({ onBackToHome, onSelectModel }: ComparisonViewPr
                 <td className="p-4 text-center whitespace-nowrap">
                   <button
                     onClick={() => onSelectModel(model.id)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 font-bold text-xs transition flex items-center gap-1 mx-auto shadow-xs cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-rose-50/80 hover:bg-gradient-to-r hover:from-rose-500 hover:to-pink-500 hover:text-white text-rose-700 font-bold text-xs transition flex items-center gap-1 mx-auto shadow-xs cursor-pointer border border-rose-200/60"
                   >
                     <span>Eksplorasi</span>
                     <ArrowRight className="w-3.5 h-3.5" />
