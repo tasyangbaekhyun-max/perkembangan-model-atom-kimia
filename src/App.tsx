@@ -112,10 +112,15 @@ export default function App() {
 
   // Masuk dengan Google dari Modal
   const handleLoginWithGoogle = async () => {
+    if (googleRoleInput === 'student' && !classCodeInput.trim()) {
+      alert('Kode Kelas Kimia wajib diisi untuk siswa agar masuk sesuai kelas masing-masing!')
+      return
+    }
     try {
       const access = await authService.loginWithGoogle({
-        customName: studentNameInput.trim() || 'Siswa Kimia',
-        classCode: classCodeInput.trim() || 'KIM-X-FASE-E',
+        customName: studentNameInput.trim() || (googleRoleInput === 'teacher' ? 'Dr. Guru Kimia' : 'Siswa Kimia'),
+        classCode: classCodeInput.trim().toUpperCase() || 'KIM-X-FASE-E',
+        role: googleRoleInput,
         schoolName: 'SMA Negeri 1 Jakarta',
       })
       setShowGoogleLoginModal(false)
@@ -659,11 +664,16 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Kode Kelas Kimia:</label>
+                <label className="font-bold text-slate-700 flex items-center justify-between">
+                  <span>Kode Kelas Kimia:</span>
+                  {googleRoleInput === 'student' && (
+                    <span className="text-[10px] text-rose-600 font-bold">*Wajib Siswa</span>
+                  )}
+                </label>
                 <input
                   type="text"
                   value={classCodeInput}
-                  onChange={(e) => setClassCodeInput(e.target.value)}
+                  onChange={(e) => setClassCodeInput(e.target.value.toUpperCase())}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono font-bold text-slate-800 uppercase focus:outline-indigo-500"
                   placeholder="Contoh: KIM-X-FASE-E"
                 />

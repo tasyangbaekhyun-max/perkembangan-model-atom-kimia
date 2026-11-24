@@ -525,7 +525,7 @@ class LearningProgressService {
       // 1. Ambil data dari koleksi student_learning_progress
       try {
         const snap = await getDocs(collection(db, 'student_learning_progress'))
-        snap.forEach((d) => {
+        snap.forEach((d: any) => {
           const data = d.data() as any
           const stages: string[] = Array.isArray(data.completedStages) ? data.completedStages : []
           const totalXP = typeof data.totalXP === 'number' && data.totalXP > 0
@@ -570,7 +570,7 @@ class LearningProgressService {
       // 2. Ambil dari koleksi users untuk mencatat akun siswa terdaftar yang belum memulai eksplorasi
       try {
         const usersSnap = await getDocs(collection(db, 'users'))
-        usersSnap.forEach((ud) => {
+        usersSnap.forEach((ud: any) => {
           const udata = ud.data() as any
           // Lewati akun berstatus guru
           if (udata.role === 'teacher') return
@@ -617,7 +617,7 @@ class LearningProgressService {
       // 3. Ambil dari koleksi quiz_submissions untuk melengkapi nilai kuis siswa
       try {
         const quizSnap = await getDocs(collection(db, 'quiz_submissions'))
-        quizSnap.forEach((qd) => {
+        quizSnap.forEach((qd: any) => {
           const qdata = qd.data() as any
           const score = typeof qdata.firstAttemptScore === 'number'
             ? qdata.firstAttemptScore
@@ -696,7 +696,7 @@ class LearningProgressService {
           const freshList = await this.fetchRemoteProgressForTeacher()
           onUpdate(freshList)
         },
-        (err) => {
+        (err: any) => {
           console.warn('[Firebase] Error listener real-time progress siswa:', err)
           onUpdate(this.getAllStudentsProgress())
         }

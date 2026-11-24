@@ -498,20 +498,34 @@ class AuthService {
    * Terhubung secara nyata ke Firebase Auth jika kredensial diisi.
    */
   public async loginWithEmail(
-    paramsOrEmail: { email: string; password: string; rememberDevice?: boolean } | string,
-    maybePassword?: string
+    paramsOrEmail:
+      | {
+          email: string
+          password: string
+          rememberDevice?: boolean
+          classCode?: string
+          role?: 'student' | 'teacher'
+        }
+      | string,
+    maybePassword?: string,
+    maybeClassCode?: string
   ): Promise<{ success: boolean; error?: string; user?: UserAccess }> {
     let email = ''
     let password = ''
     let rememberDevice = true
+    let customClassCode: string | undefined
+    let expectedRole: 'student' | 'teacher' | undefined
 
     if (typeof paramsOrEmail === 'string') {
       email = paramsOrEmail.trim().toLowerCase()
       password = (maybePassword || '').trim()
+      if (maybeClassCode) customClassCode = maybeClassCode.trim().toUpperCase()
     } else {
       email = paramsOrEmail.email.trim().toLowerCase()
       password = paramsOrEmail.password.trim()
       rememberDevice = paramsOrEmail.rememberDevice !== false
+      if (paramsOrEmail.classCode) customClassCode = paramsOrEmail.classCode.trim().toUpperCase()
+      expectedRole = paramsOrEmail.role
     }
 
     if (!email) {
@@ -527,8 +541,8 @@ class AuthService {
         const cred = await signInWithEmailAndPassword(auth, email, password)
 
         let name = cred.user.displayName || email.split('@')[0]
-        let role: 'student' | 'teacher' | 'admin' = 'student'
-        let classCode = 'KIM-X-FASE-E'
+        let role: 'student' | 'teacher' | 'admin' = expectedRole || 'student'
+        let classCode = customClassCode || 'KIM-X-FASE-E'
         let schoolName = 'SMA Negeri 1 Jakarta'
 
         // Muat data profil dari Cloud Firestore
@@ -538,22 +552,39 @@ class AuthService {
             if (userDoc.exists()) {
               const data = userDoc.data()
               if (data.name) name = data.name
-              if (data.role) role = data.role
-              if (data.classCode) classCode = data.classCode
+              if (data.role && !expectedRole) role = data.role
+              if (data.classCode && !customClassCode) classCode = data.classCode
               if (data.schoolName) schoolName = data.schoolName
+
+              // Jika ada custom classCode atau role yang ditentukan saat login, perbarui Firestore
+              if (customClassCode || expectedRole) {
+                await setDoc(
+                  doc(db, 'users', cred.user.uid),
+                  {
+                    ...(customClassCode ? { classCode: customClassCode } : {}),
+                    ...(expectedRole ? { role: expectedRole } : {}),
+                    lastLoginAt: serverTimestamp(),
+                  },
+                  { merge: true }
+                )
+              }
             } else {
               // Simpan record dasar jika belum pernah ada
-              await setDoc(doc(db, 'users', cred.user.uid), {
-                id: cred.user.uid,
-                name,
-                email,
-                role,
-                classCode,
-                schoolName,
-                createdAt: serverTimestamp(),
-                lastLoginAt: serverTimestamp(),
-                provider: 'firebase-email',
-              }, { merge: true })
+              await setDoc(
+                doc(db, 'users', cred.user.uid),
+                {
+                  id: cred.user.uid,
+                  name,
+                  email,
+                  role,
+                  classCode,
+                  schoolName,
+                  createdAt: serverTimestamp(),
+                  lastLoginAt: serverTimestamp(),
+                  provider: 'firebase-email',
+                },
+                { merge: true }
+              )
             }
           } catch (dbErr) {
             console.warn('[Firebase] Gagal sinkron Firestore saat login email:', dbErr)
@@ -606,13 +637,18 @@ class AuthService {
       }
     }
 
+    if (customClassCode) {
+      user.classCode = customClassCode
+      this.saveRegisteredUsers(users)
+    }
+
     const sessionDays = rememberDevice ? 30 : 1
     const session: StoredSession = {
       userId: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
-      classCode: user.classCode || 'KIM-X-FASE-E',
+      role: expectedRole || user.role,
+      classCode: customClassCode || user.classCode || 'KIM-X-FASE-E',
       schoolName: user.schoolName || 'SMA Negeri 1 Jakarta',
       token: `jwt_local_${Date.now()}_${user.id}`,
       expiresAt: new Date(Date.now() + sessionDays * 24 * 3600 * 1000).toISOString(),

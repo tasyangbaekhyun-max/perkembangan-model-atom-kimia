@@ -7,7 +7,8 @@ import {
   AlertCircle,
   ArrowRight,
   Sparkles,
-  X
+  X,
+  GraduationCap
 } from 'lucide-react'
 import { authService, type UserAccess, isFirebaseConfigured, firebaseConfig } from '../../lib'
 
@@ -85,13 +86,6 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
     resetMessages()
   }
 
-  // Auto-fill demo credentials
-  const handleAutoFill = (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail)
-    setPassword(demoPass)
-    resetMessages()
-  }
-
   // 1. LOGIN HANDLER
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -102,12 +96,19 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
       return
     }
 
+    if (role === 'student' && !classCode.trim()) {
+      setErrorMessage('Silakan masukkan Kode Kelas kamu agar dapat masuk ke rombel kelas yang sesuai.')
+      return
+    }
+
     setIsLoading(true)
     try {
       const res = await authService.loginWithEmail({
         email,
         password,
         rememberDevice,
+        classCode: role === 'student' ? classCode.trim().toUpperCase() : undefined,
+        role,
       })
 
       if (res.success && res.user) {
@@ -142,6 +143,11 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
       return
     }
 
+    if (role === 'student' && !classCode.trim()) {
+      setErrorMessage('Kode Kelas wajib diisi untuk siswa agar masuk ke kelas kimia yang sesuai.')
+      return
+    }
+
     // Verifikasi Keamanan Khusus Mode Guru
     if (role === 'teacher') {
       const trimmedTeacherPasskey = teacherPasskey.trim()
@@ -165,7 +171,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
         email,
         password,
         confirmPassword,
-        classCode: classCode.trim() || 'KIM-X-FASE-E',
+        classCode: role === 'student' ? classCode.trim().toUpperCase() : (classCode.trim().toUpperCase() || 'GURU-KIMIA-X'),
         role,
         rememberDevice,
       })
@@ -278,13 +284,17 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
   }
 
   const handleGoogleSubmit = async () => {
+    if (googleRole === 'student' && !googleClassInput.trim()) {
+      setErrorMessage('Kode Kelas wajib diisi untuk siswa agar masuk sesuai kelas masing-masing.')
+      return
+    }
     setIsLoading(true)
     setShowGoogleModal(false)
     try {
       const access = await authService.loginWithGoogle({
         customName: googleNameInput.trim() || (googleRole === 'teacher' ? 'Dr. Guru Kimia' : 'Siswa Kimia'),
         email: googleEmailInput.trim() || undefined,
-        classCode: googleClassInput.trim() || 'KIM-X-FASE-E',
+        classCode: googleClassInput.trim().toUpperCase() || 'KIM-X-FASE-E',
         role: googleRole,
         rememberDevice,
       })
@@ -554,8 +564,68 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
             {/* FORM 1: LOGIN MODE                                             */}
             {/* ============================================================== */}
             {mode === 'login' && (
-              <form onSubmit={handleLogin} className="flex flex-col gap-4">
+              <form onSubmit={handleLogin} className="flex flex-col gap-3.5">
                 
+                {/* PILIHAN PERAN MASUK (Mode Siswa vs Mode Guru) */}
+                <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl mb-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRole('student')
+                      resetMessages()
+                    }}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      role === 'student'
+                        ? 'bg-white text-rose-600 shadow-2xs border border-slate-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>👤 Mode Siswa</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRole('teacher')
+                      resetMessages()
+                    }}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      role === 'teacher'
+                        ? 'bg-rose-500 text-white shadow-2xs font-extrabold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🎓 Mode Guru</span>
+                  </button>
+                </div>
+
+                {/* Kolom Khusus KODE KELAS untuk Mode Siswa */}
+                {role === 'student' && (
+                  <div className="space-y-1.5 animate-fade-in">
+                    <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <GraduationCap className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Kode Kelas Kimia</span>
+                      </span>
+                      <span className="text-[10px] text-rose-600 font-bold px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200">
+                        *Wajib Siswa
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={classCode}
+                        onChange={(e) => setClassCode(e.target.value.toUpperCase())}
+                        placeholder="Contoh: KIM-X-FASE-E"
+                        required
+                        className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-mono font-bold text-slate-800 text-sm placeholder:text-slate-400 uppercase focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      Siswa harus masuk sesuai kode kelas yang diberikan oleh guru masing-masing.
+                    </p>
+                  </div>
+                )}
+
                 {/* Email Field */}
                 <div className="space-y-1.5">
                   <div className="relative">
@@ -563,7 +633,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Contoh: email@example.com"
+                      placeholder={role === 'teacher' ? 'Email Guru (Contoh: guru@sekolah.sch.id)' : 'Email Siswa (Contoh: siswa@example.com)'}
                       required
                       className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                     />
@@ -604,7 +674,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                       <span>Sedang Masuk...</span>
                     </span>
                   ) : (
-                    <span>Masuk</span>
+                    <span>{role === 'teacher' ? 'Masuk sebagai Guru' : 'Masuk sebagai Siswa'}</span>
                   )}
                 </button>
 
@@ -743,16 +813,33 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                   </button>
                 </div>
 
-                {/* Kode Kelas Opsional */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={classCode}
-                    onChange={(e) => setClassCode(e.target.value)}
-                    placeholder="Kode Kelas (Contoh: KIM-X-FASE-E) - Opsional"
-                    className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 uppercase focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
-                  />
-                </div>
+                {/* Kode Kelas Khusus Mode Siswa (Wajib Diisi) */}
+                {role === 'student' && (
+                  <div className="space-y-1.5 animate-fade-in">
+                    <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <GraduationCap className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Kode Kelas Kimia</span>
+                      </span>
+                      <span className="text-[10px] text-rose-600 font-bold px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200">
+                        *Wajib Siswa
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={classCode}
+                        onChange={(e) => setClassCode(e.target.value.toUpperCase())}
+                        placeholder="Contoh: KIM-X-FASE-E"
+                        required
+                        className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-mono font-bold text-slate-800 text-sm placeholder:text-slate-400 uppercase focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      Siswa wajib mendaftar menggunakan kode kelas yang diberikan oleh guru kimia Anda.
+                    </p>
+                  </div>
+                )}
 
                 {/* Kolom Khusus SANDI VERIFIKASI GURU (Hanya Tampil Jika Mode Guru) */}
                 {role === 'teacher' && (
@@ -948,32 +1035,15 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                 <div className="w-full border-t border-slate-200" />
               </div>
 
-              {/* 3 Social Buttons: Facebook, Google, Apple */}
-              <div className="grid grid-cols-3 gap-3">
-                
-                {/* Facebook Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAutoFill('siswa@sekolah.id', 'password123')
-                    setSuccessMessage('Mode Facebook demo: kredensial siswa terisi otomatis!')
-                  }}
-                  className="py-2.5 px-3 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-slate-400 flex items-center justify-center transition cursor-pointer group shadow-2xs"
-                  title="Masuk dengan Facebook"
-                >
-                  <svg className="w-5 h-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                </button>
-
-                {/* Google Button (Official 4-color) */}
+              {/* Google Social Button (Facebook & Apple Dihilangkan Sesuai Permintaan) */}
+              <div>
                 <button
                   type="button"
                   onClick={handleGoogleAuth}
-                  className="py-2.5 px-3 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-blue-400 flex items-center justify-center transition cursor-pointer group shadow-2xs"
+                  className="w-full py-3 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-slate-400 flex items-center justify-center gap-3 transition cursor-pointer group shadow-2xs font-bold text-xs text-slate-700 bg-white"
                   title={isFirebaseConfigured() ? 'Masuk dengan Google (Firebase)' : 'Masuk dengan Google (Akun Demo)'}
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                     <path
                       fill="#4285F4"
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -991,21 +1061,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                </button>
-
-                {/* Apple Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAutoFill('guru@sekolah.id', 'password123')
-                    setSuccessMessage('Mode Apple demo: kredensial guru terisi otomatis!')
-                  }}
-                  className="py-2.5 px-3 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-slate-400 flex items-center justify-center transition cursor-pointer group shadow-2xs"
-                  title="Masuk dengan Apple"
-                >
-                  <svg className="w-5 h-5 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.42c.62-.75 1.04-1.8 0.93-2.85-.9.04-1.99.6-2.63 1.35-.56.65-1.06 1.7-0.93 2.71 1 .08 2.01-.46 2.63-1.21Z" />
-                  </svg>
+                  <span>{mode === 'register' ? 'Daftar Menggunakan Akun Google' : 'Masuk Menggunakan Akun Google'}</span>
                 </button>
               </div>
 
@@ -1170,11 +1226,17 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 text-[11px]">Kode Kelas Kimia:</label>
+                <label className="font-bold text-slate-700 text-[11px] flex items-center justify-between">
+                  <span>Kode Kelas Kimia:</span>
+                  {googleRole === 'student' && (
+                    <span className="text-[10px] text-rose-600 font-bold">*Wajib Siswa</span>
+                  )}
+                </label>
                 <input
                   type="text"
                   value={googleClassInput}
-                  onChange={(e) => setGoogleClassInput(e.target.value)}
+                  onChange={(e) => setGoogleClassInput(e.target.value.toUpperCase())}
+                  placeholder="Contoh: KIM-X-FASE-E"
                   className="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold text-slate-800 uppercase focus:outline-blue-500 text-xs"
                 />
               </div>
