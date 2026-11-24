@@ -29,6 +29,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
   const [fullName, setFullName] = useState('')
   const [classCode, setClassCode] = useState('KIM-X-FASE-E')
   const [role, setRole] = useState<'student' | 'teacher'>('student')
+  const [lockedRole, setLockedRole] = useState<'student' | 'teacher' | null>(null)
   const [rememberDevice, setRememberDevice] = useState(true)
 
   // Password visibility
@@ -63,6 +64,23 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
     setMode(newMode)
     resetMessages()
     setForgotStep(1)
+    if (newMode !== 'register') {
+      setLockedRole(null)
+    }
+  }
+
+  const handleRegisterAsTeacher = () => {
+    setRole('teacher')
+    setLockedRole('teacher')
+    setMode('register')
+    resetMessages()
+  }
+
+  const handleRegisterAsStudent = () => {
+    setRole('student')
+    setLockedRole('student')
+    setMode('register')
+    resetMessages()
   }
 
   // Auto-fill demo credentials
@@ -346,7 +364,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
             </div>
             <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-700">
               <span className="w-4 h-4 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-[9px] font-bold">✓</span>
-              <span>10 Kuis Evaluasi Mencegah Miskonsepsi Kimia</span>
+              <span>25 Kuis Evaluasi Mencegah Miskonsepsi Kimia</span>
             </div>
           </div>
         </div>
@@ -354,19 +372,19 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
         {/* ============================================================== */}
         {/* RIGHT COLUMN: LOGIN / REGISTER / LUPA SANDI FORM (7 Cols)      */}
         {/* ============================================================== */}
-        <div className="lg:col-span-7 bg-white p-6 sm:p-10 lg:p-12 flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-white/95 p-6 sm:p-10 lg:p-12 flex flex-col justify-between">
           
           <div className="max-w-md w-full mx-auto flex flex-col">
             
             {/* Brand Logo Header matching reference */}
-            <div className="flex items-center justify-between pb-6 mb-4 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-6 mb-4 border-b border-rose-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-500 to-pink-500 flex items-center justify-center text-white shadow-md shadow-rose-500/20">
                   <Atom className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xl font-black tracking-tight text-blue-900 leading-none">
-                    my<span className="text-blue-600">Edlinks</span>
+                  <span className="text-xl font-black tracking-tight text-slate-900 leading-none">
+                    my<span className="text-rose-500">Edlinks</span>
                     <span className="text-[11px] font-bold text-slate-400 ml-1.5">• AtomLab</span>
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium">Smart Chemistry Learning Portal</span>
@@ -377,11 +395,11 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
               <button
                 type="button"
                 onClick={onContinueAsGuest}
-                className="text-xs font-bold text-slate-500 hover:text-indigo-600 px-3 py-1.5 rounded-xl hover:bg-slate-50 border border-slate-200 transition flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-slate-600 hover:text-rose-600 px-3 py-1.5 rounded-xl hover:bg-rose-50/60 border border-rose-100 transition flex items-center gap-1 cursor-pointer"
                 title="Masuk sebagai Siswa Tamu tanpa login"
               >
                 <span>Mode Tamu</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 text-rose-500" />
               </button>
             </div>
 
@@ -390,7 +408,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
               {isFirebaseConfigured() ? (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Firebase Terhubung (Live Auth & Firestore)</span>
+                  <span>Firebase Terhubung (Live Auth &amp; Firestore)</span>
                 </div>
               ) : (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-semibold">
@@ -404,48 +422,85 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
             <div className="mb-6">
               <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                 {mode === 'login' && 'Hai, selamat datang kembali'}
-                {mode === 'register' && 'Daftar Akun Baru'}
+                {mode === 'register' && (role === 'teacher' ? 'Daftar Akun Guru' : 'Daftar Akun Murid')}
                 {mode === 'forgot' && 'Atur Ulang Kata Sandi'}
               </h2>
 
-              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1.5">
+              <div className="text-xs sm:text-sm text-slate-500 font-medium mt-1.5">
                 {mode === 'login' && (
-                  <>
-                    Baru di AtomLab?{' '}
-                    <button
-                      type="button"
-                      onClick={() => switchMode('register')}
-                      className="text-blue-600 font-bold hover:underline cursor-pointer"
-                    >
-                      Daftar Gratis
-                    </button>
-                  </>
+                  <div className="flex flex-col gap-1 text-xs sm:text-sm text-slate-600">
+                    <div>
+                      Apakah anda seorang guru?{' '}
+                      <button
+                        type="button"
+                        onClick={handleRegisterAsTeacher}
+                        className="text-rose-600 font-bold hover:underline cursor-pointer"
+                      >
+                        Daftar Gratis
+                      </button>
+                    </div>
+                    <div>
+                      Apakah anda seorang murid?{' '}
+                      <button
+                        type="button"
+                        onClick={handleRegisterAsStudent}
+                        className="text-rose-600 font-bold hover:underline cursor-pointer"
+                      >
+                        Daftar Gratis
+                      </button>
+                    </div>
+                  </div>
                 )}
                 {mode === 'register' && (
-                  <>
-                    Sudah memiliki akun?{' '}
-                    <button
-                      type="button"
-                      onClick={() => switchMode('login')}
-                      className="text-blue-600 font-bold hover:underline cursor-pointer"
-                    >
-                      Masuk di Sini
-                    </button>
-                  </>
+                  <div className="flex flex-col gap-1">
+                    <p>
+                      Sudah memiliki akun?{' '}
+                      <button
+                        type="button"
+                        onClick={() => switchMode('login')}
+                        className="text-rose-600 font-bold hover:underline cursor-pointer"
+                      >
+                        Masuk di Sini
+                      </button>
+                    </p>
+                    {lockedRole === 'teacher' ? (
+                      <p className="text-[11px] text-slate-500">
+                        Bukan guru?{' '}
+                        <button
+                          type="button"
+                          onClick={handleRegisterAsStudent}
+                          className="text-rose-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Daftar sebagai murid
+                        </button>
+                      </p>
+                    ) : lockedRole === 'student' ? (
+                      <p className="text-[11px] text-slate-500">
+                        Bukan murid?{' '}
+                        <button
+                          type="button"
+                          onClick={handleRegisterAsTeacher}
+                          className="text-rose-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Daftar sebagai guru
+                        </button>
+                      </p>
+                    ) : null}
+                  </div>
                 )}
                 {mode === 'forgot' && (
-                  <>
+                  <p>
                     Sudah ingat kata sandi kamu?{' '}
                     <button
                       type="button"
                       onClick={() => switchMode('login')}
-                      className="text-blue-600 font-bold hover:underline cursor-pointer"
+                      className="text-rose-600 font-bold hover:underline cursor-pointer"
                     >
                       Kembali ke Masuk
                     </button>
-                  </>
+                  </p>
                 )}
-              </p>
+              </div>
             </div>
 
             {/* Alert Messages (Error / Success) */}
@@ -492,7 +547,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Contoh: email@example.com"
                       required
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition"
+                      className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                     />
                   </div>
                 </div>
@@ -506,7 +561,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Masukkan kata sandi kamu"
                       required
-                      className="w-full px-4 py-3 pr-11 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition"
+                      className="w-full px-4 py-3 pr-11 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                     />
                     <button
                       type="button"
@@ -519,11 +574,11 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                   </div>
                 </div>
 
-                {/* Blue Masuk Button */}
+                {/* Warm Coral Masuk Button */}
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 rounded-xl bg-[#1b74e4] hover:bg-blue-600 text-white font-extrabold text-sm shadow-md shadow-blue-500/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 mt-1"
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-extrabold text-sm shadow-md shadow-rose-500/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 mt-1"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2">
@@ -540,7 +595,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                   <button
                     type="button"
                     onClick={() => switchMode('forgot')}
-                    className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                    className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
                   >
                     Lupa kata sandi?
                   </button>
@@ -554,34 +609,57 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
             {mode === 'register' && (
               <form onSubmit={handleRegister} className="flex flex-col gap-3.5">
                 
-                {/* Pilihan Peran: Siswa vs Guru */}
-                <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
-                  <button
-                    type="button"
-                    onClick={() => setRole('student')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      role === 'student'
-                        ? 'bg-white text-blue-700 shadow-2xs border border-slate-200'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <span>👤 Mode Siswa</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('teacher')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      role === 'teacher'
-                        ? 'bg-indigo-600 text-white shadow-2xs font-extrabold'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <span>🎓 Mode Guru</span>
-                  </button>
-                </div>
+                {/* STRICT ROLE PRESENTATION: Locked based on initial button clicked */}
+                {lockedRole ? (
+                  <div className={`p-3 rounded-2xl border text-xs font-semibold flex items-center justify-between ${
+                    lockedRole === 'teacher'
+                      ? 'bg-amber-50/80 border-amber-200 text-amber-900'
+                      : 'bg-rose-50/80 border-rose-200 text-rose-900'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{lockedRole === 'teacher' ? '🎓' : '👤'}</span>
+                      <div>
+                        <div className="font-bold">
+                          {lockedRole === 'teacher' ? 'Pendaftaran Mode Guru' : 'Pendaftaran Mode Murid'}
+                        </div>
+                        <div className="text-[11px] font-normal opacity-80">
+                          {lockedRole === 'teacher' ? 'Akses penuh kelola materi & kuis' : 'Akses eksplorasi materi & asesmen siswa'}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-white/80 border border-current text-[10px] font-bold uppercase tracking-wider">
+                      Terkunci
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
+                    <button
+                      type="button"
+                      onClick={() => setRole('student')}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        role === 'student'
+                          ? 'bg-white text-rose-600 shadow-2xs border border-slate-200'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>👤 Mode Siswa</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('teacher')}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        role === 'teacher'
+                          ? 'bg-rose-500 text-white shadow-2xs font-extrabold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>🎓 Mode Guru</span>
+                    </button>
+                  </div>
+                )}
 
                 {role === 'teacher' && (
-                  <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 text-xs font-medium leading-relaxed">
+                  <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl text-amber-900 text-xs font-medium leading-relaxed">
                     💡 <strong>Mode Guru:</strong> Anda akan memiliki hak akses penuh untuk mengelola materi (CRUD) dan butir soal kuis tanpa pembatasan Lock Materi.
                   </div>
                 )}
@@ -592,8 +670,8 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Nama Lengkap (Contoh: Budi Santoso)"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition"
+                    placeholder={role === 'teacher' ? 'Nama Guru & Gelar (Contoh: Dra. Siti Rahma, M.Pd)' : 'Nama Lengkap Siswa (Contoh: Budi Santoso)'}
+                    className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                   />
                 </div>
 
@@ -605,7 +683,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Contoh: email@example.com"
                     required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition"
+                    className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                   />
                 </div>
 
@@ -617,7 +695,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan kata sandi kamu (min. 6 karakter)"
                     required
-                    className="w-full px-4 py-3 pr-11 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition"
+                    className="w-full px-4 py-3 pr-11 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                   />
                   <button
                     type="button"
@@ -636,7 +714,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Konfirmasi kata sandi kamu"
                     required
-                    className="w-full px-4 py-3 pr-11 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition"
+                    className="w-full px-4 py-3 pr-11 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                   />
                   <button
                     type="button"
@@ -654,7 +732,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                     value={classCode}
                     onChange={(e) => setClassCode(e.target.value)}
                     placeholder="Kode Kelas (Contoh: KIM-X-FASE-E) - Opsional"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm placeholder:text-slate-400 uppercase focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition"
+                    className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 uppercase focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                   />
                 </div>
 
@@ -662,7 +740,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 rounded-xl bg-[#1b74e4] hover:bg-blue-600 text-white font-extrabold text-sm shadow-md shadow-blue-500/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 mt-1"
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-extrabold text-sm shadow-md shadow-rose-500/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 mt-1"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2">
@@ -670,7 +748,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                       <span>Mendaftarkan Akun...</span>
                     </span>
                   ) : (
-                    <span>Daftar Akun Baru</span>
+                    <span>{role === 'teacher' ? 'Daftar Sebagai Guru' : 'Daftar Sebagai Murid'}</span>
                   )}
                 </button>
               </form>
@@ -694,14 +772,14 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Masukkan email terdaftar kamu"
                         required
-                        className="w-full px-4 py-3 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition"
+                        className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-medium text-slate-800 text-sm placeholder:text-slate-400 focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-3.5 rounded-xl bg-[#1b74e4] hover:bg-blue-600 text-white font-extrabold text-sm shadow-md shadow-blue-500/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-extrabold text-sm shadow-md shadow-rose-500/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
                     >
                       {isLoading ? 'Memeriksa Email...' : 'Kirim Kode Pemulihan'}
                     </button>
@@ -721,7 +799,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                         onChange={(e) => setResetToken(e.target.value)}
                         placeholder="Contoh: ATOM-2026"
                         required
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 font-mono font-bold text-slate-800 text-sm focus:outline-none focus:border-blue-600"
+                        className="w-full px-4 py-2.5 rounded-xl border border-rose-200 font-mono font-bold text-slate-800 text-sm focus:outline-none focus:border-rose-400"
                       />
                     </div>
 
@@ -735,7 +813,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="Minimal 6 karakter"
                           required
-                          className="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm focus:outline-none focus:border-blue-600"
+                          className="w-full px-4 py-2.5 pr-11 rounded-xl border border-rose-200 font-medium text-slate-800 text-sm focus:outline-none focus:border-rose-400"
                         />
                         <button
                           type="button"
@@ -756,14 +834,14 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
                         placeholder="Ketik ulang kata sandi baru"
                         required
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 font-medium text-slate-800 text-sm focus:outline-none focus:border-blue-600"
+                        className="w-full px-4 py-2.5 rounded-xl border border-rose-200 font-medium text-slate-800 text-sm focus:outline-none focus:border-rose-400"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md shadow-emerald-600/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 mt-1"
+                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-sm shadow-md shadow-emerald-600/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 mt-1"
                     >
                       {isLoading ? 'Menyimpan Kata Sandi...' : 'Simpan Kata Sandi Baru'}
                     </button>
@@ -854,7 +932,7 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                   type="checkbox"
                   checked={rememberDevice}
                   onChange={(e) => setRememberDevice(e.target.checked)}
-                  className="w-4 h-4 rounded-md text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                  className="w-4 h-4 rounded-md text-rose-500 focus:ring-rose-400 border-rose-300 cursor-pointer accent-rose-500"
                 />
                 <span className="text-xs font-semibold text-slate-700">
                   Ingat perangkat ini
@@ -864,11 +942,11 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
               {/* Legal disclaimer matching reference */}
               <p className="text-[11px] text-slate-400 text-center leading-relaxed mt-2">
                 Dengan melanjutkan, kamu menerima{' '}
-                <a href="#terms" onClick={(e) => e.preventDefault()} className="text-blue-600 hover:underline">
+                <a href="#terms" onClick={(e) => e.preventDefault()} className="text-rose-600 hover:underline">
                   Syarat Penggunaan
                 </a>{' '}
                 dan{' '}
-                <a href="#privacy" onClick={(e) => e.preventDefault()} className="text-blue-600 hover:underline">
+                <a href="#privacy" onClick={(e) => e.preventDefault()} className="text-rose-600 hover:underline">
                   Kebijakan Privasi
                 </a>{' '}
                 kami.
