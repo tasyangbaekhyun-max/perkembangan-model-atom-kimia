@@ -875,29 +875,6 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
               </p>
             </div>
 
-            {/* Quick Demo Credentials Footer Helper */}
-            <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2">
-              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
-                Akses Cepat Pengujian (1-Klik):
-              </span>
-              <div className="flex flex-wrap gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => handleAutoFill('siswa@sekolah.id', 'password123')}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium text-[11px] border border-slate-200 transition cursor-pointer"
-                >
-                  👤 Akun Siswa (<code className="text-blue-600 font-bold">siswa@sekolah.id</code>)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAutoFill('guru@sekolah.id', 'password123')}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 font-medium text-[11px] border border-slate-200 transition cursor-pointer"
-                >
-                  🎓 Akun Guru (<code className="text-indigo-600 font-bold">guru@sekolah.id</code>)
-                </button>
-              </div>
-            </div>
-
           </div>
         </div>
 
