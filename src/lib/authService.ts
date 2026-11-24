@@ -581,15 +581,17 @@ class AuthService {
 
         // Cek fallback jika guru menyimpan di profil 'users'
         const usersSnap = await getDoc(doc(db, 'users', code))
-        const userData = usersSnap.exists() ? (usersSnap.data() || {}) : null
-        if (userData && userData.role === 'teacher') {
-          return {
-            valid: true,
-            classCode: code,
-            className: userData.className || `Kelas ${userData.name || code}`,
-            teacherId: usersSnap.id,
-            teacherName: userData.name || '',
-            isGeneral: false,
+        if (usersSnap.exists()) {
+          const data = usersSnap.data() || {}
+          if (data.role === 'teacher') {
+            return {
+              valid: true,
+              classCode: code,
+              className: data.className || ("Kelas " + (data.name || code)),
+              teacherId: usersSnap.id,
+              teacherName: data.name || '',
+              isGeneral: false,
+            }
           }
         }
       } catch (err) {
@@ -1549,3 +1551,6 @@ class AuthService {
 }
 
 export const authService = new AuthService()
+
+
+
