@@ -48,6 +48,7 @@ import {
   type StudentProgressSummary
 } from '../../services/learningProgressService'
 import { TeacherMonitoringModal } from '../teacher/TeacherMonitoringModal'
+import { BohrStructureSimulator } from '../bohr/BohrStructureSimulator'
 
 interface TimelineWorkspaceProps {
   initialModelId?: string
@@ -1163,6 +1164,9 @@ export function TimelineWorkspace({
                   </div>
                 </div>
               </div>
+
+              {/* Bohr Atom Structure Interactive Module */}
+              {selectedModel.id === 'bohr' && <BohrStructureSimulator />}
 
               {/* Chemical Rules / Postulates */}
               <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">

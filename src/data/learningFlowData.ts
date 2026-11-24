@@ -388,7 +388,7 @@ export const LEARNING_FLOW_DATA: Record<string, ModelLearningGuide> = {
         'Diameter inti atom (~10⁻¹⁵ m) seratus ribu kali lebih kecil dari ukuran keseluruhan atom (~10⁻¹⁰ m).'
       ],
       coreDiscovery:
-        'Atom terdiri dari INTI ATOM (Nucleus) bermuatan positif yang amat kecil dan padat di pusat, dikelilingi oleh elektron-elektron yang bergerak di ruang hampa yang sangat luas.'
+        'Atom memiliki inti atom (nucleus) yang sangat kecil, padat, dan bermuatan positif di bagian pusat. Hampir seluruh massa atom terkonsentrasi pada inti tersebut. Elektron berada di sekitar inti, sehingga sebagian besar volume atom merupakan ruang kosong.'
     },
     evolutionBridge: {
       previousGap:

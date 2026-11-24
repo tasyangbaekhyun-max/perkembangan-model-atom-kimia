@@ -192,14 +192,27 @@ export function BohrSimulator({ onComplete, isCompleted }: { onComplete?: () => 
                   n={n}
                 </span>
 
-                {/* The Electron on the current orbit */}
+                {/* The Electron on the current orbit - Locked precisely to the circular orbit track */}
                 {isCurrent && (
                   <div
-                    className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-600 shadow-md shadow-blue-500/50 ring-2 ring-white flex items-center justify-center animate-spin-slow origin-center"
+                    className="absolute inset-0 rounded-full pointer-events-none"
                     style={{
-                      transformOrigin: `0px ${size / 2}px`,
+                      animation: `spinSlow ${6 + n * 2.5}s linear infinite`,
                     }}
-                  />
+                  >
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-600 ring-2 ring-white flex items-center justify-center pointer-events-auto transition-transform duration-200"
+                      style={{
+                        top: '-7px',
+                        boxShadow: transitionMessage
+                          ? `0 0 16px ${transitionMessage.hexColor}, 0 0 6px ${transitionMessage.hexColor}`
+                          : '0 0 10px rgba(56,189,248,0.7)',
+                      }}
+                      title={`Elektron (e⁻) mengorbit pada lintasan stasioner kulit n = ${n}`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />
+                    </div>
+                  </div>
                 )}
               </div>
             )

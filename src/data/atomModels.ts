@@ -251,22 +251,22 @@ export const ATOM_MODELS: AtomModel[] = [
     name: 'Model Atom Rutherford',
     scientist: 'Ernest Rutherford, Geiger & Marsden',
     period: '1911',
-    summary: 'Atom terdiri dari inti (nucleus) bermuatan positif yang sangat kecil dan bermassa sangat pekat di pusat, dikelilingi oleh elektron-elektron di ruang hampa yang sangat luas.',
+    summary: 'Atom memiliki inti atom (nucleus) yang sangat kecil, padat, dan bermuatan positif di bagian pusat. Hampir seluruh massa atom terkonsentrasi pada inti tersebut. Elektron berada di sekitar inti, sehingga sebagian besar volume atom merupakan ruang kosong.',
     analogy: 'Tata surya mini dengan matahari sebagai inti positif padat dan planet sebagai elektron di ruang angkasa kosong.',
     representations: {
       macroscopic: 'Hamburan berkas partikel alfa (α) berkecepatan tinggi saat menembus lempeng emas tipis setebal beberapa ratus atom pada layar pendar seng sulfida (ZnS).',
-      submicroscopic: 'Sebagian besar volume atom adalah ruang hampa (>99.99%). Inti atom di pusat berdiameter ~10⁻¹⁵ m, berjarak jauh dari elektron (~10⁻¹⁰ m).',
-      symbolic: 'Rasio dimensi: r_inti / r_atom ≈ 1 : 100.000. Hamburan Coulomb: F = k (q₁ q₂) / r².'
+      submicroscopic: 'Sebagian besar volume atom adalah ruang kosong. Inti atom di pusat berdiameter jauh lebih kecil dibandingkan ukuran keseluruhan atom.',
+      symbolic: 'Hamburan Coulomb: F = k (q₁ q₂) / r². Rasio inti atom jauh lebih kecil daripada atom.'
     },
     chemicalRules: [
-      'Sebagian besar massa atom dan seluruh muatan positifnya terpusat dalam daerah inti yang amat kecil (nucleus).',
-      'Sebagian besar volume atom merupakan ruang kosong/hampa (empty space).',
-      'Elektron bermuatan negatif bergerak mengitari inti di ruang hampa tersebut seperti planet mengitari matahari.',
+      'Seluruh muatan positif dan hampir seluruh massa atom terkonsentrasi pada inti atom yang sangat kecil dan padat. Elektron berada di sekitar inti, sedangkan sebagian besar volume atom merupakan ruang kosong.',
+      'Ukuran inti atom jauh lebih kecil dibandingkan ukuran keseluruhan atom.',
+      'Elektron berada di sekitar inti atom pada ruang kosong tersebut.',
       'Jumlah muatan positif pada inti sama persis dengan total muatan elektron di sekitarnya sehingga atom netral.'
     ],
     historicalExperiment: 'Eksperimen Hamburan Partikel Alfa pada Lempeng Emas Tipis (Gold Foil Experiment).',
     resolvedProblem: 'Menjelaskan mengapa partikel alfa dapat terpantul balik dengan sudut tajam (>90°), yang mustahil terjadi pada model bola diffuse Thomson.',
-    limitations: 'Paradoks Elektrodinamika Klasik Maxwell: Elektron yang bergerak melingkar mengalami percepatan sentripetal, sehingga harus memancarkan radiasi elektromagnetik, kehilangan energi, dan spiral jatuh ke inti dalam tempo <10⁻⁸ detik (atom harusnya runtuh). Juga tidak bisa menjelaskan spektrum garis diskret.',
+    limitations: 'Model atom Rutherford belum mampu menjelaskan kestabilan atom berdasarkan teori elektromagnetik klasik. Menurut teori tersebut, elektron yang bergerak melingkar mengalami percepatan dan seharusnya memancarkan energi dalam bentuk radiasi elektromagnetik. Akibat kehilangan energi, elektron diperkirakan bergerak semakin dekat menuju inti hingga akhirnya jatuh ke inti atom. Namun, kenyataannya atom bersifat stabil. Keterbatasan ini kemudian menjadi salah satu persoalan yang mendorong pengembangan model atom Bohr pada tahun 1913.',
     color: 'from-purple-500 to-indigo-500',
     theme: {
       bgLight: 'bg-purple-50/70',

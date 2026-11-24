@@ -188,10 +188,10 @@ export function RutherfordSimulator({ onComplete, isCompleted }: { onComplete?: 
       </div>
 
       {/* Simulation Screen */}
-      <div className="relative w-full h-72 rounded-2xl bg-gradient-to-b from-purple-50/90 via-white to-indigo-50/90 border-2 border-purple-200/80 flex flex-col items-center justify-between p-4 overflow-hidden shadow-inner">
+      <div className="relative w-full min-h-[310px] rounded-2xl bg-gradient-to-b from-purple-50/90 via-white to-indigo-50/90 border-2 border-purple-200/80 flex flex-col items-center justify-between p-4 overflow-hidden shadow-inner">
         
         {/* Top Header Tag & Tabs */}
-        <div className="w-full flex items-center justify-between z-10">
+        <div className="w-full flex items-center justify-between z-10 gap-2 flex-wrap">
           <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 border border-purple-300">
             Model Inti Rutherford • 1911
           </span>
@@ -229,7 +229,7 @@ export function RutherfordSimulator({ onComplete, isCompleted }: { onComplete?: 
 
         {/* Tab 1: Gold Foil Alpha Particle Scattering Canvas */}
         {activeTab === 'gold_foil' && (
-          <div className="relative w-full flex-1 flex items-center justify-center">
+          <div className="relative w-full flex-1 flex items-center justify-center my-1">
             <svg className="w-full h-44 rounded-2xl bg-slate-950 border border-slate-800 shadow-md" viewBox="0 0 320 200">
               {/* Alpha gun emitter on left */}
               <rect x="0" y="85" width="22" height="30" rx="3" fill="#6366f1" />
@@ -269,34 +269,66 @@ export function RutherfordSimulator({ onComplete, isCompleted }: { onComplete?: 
           </div>
         )}
 
-        {/* Tab 2: Planetary Empty Space Scale */}
+        {/* Tab 2: Rutherford Model Scale & Vast Empty Space (No Concentric Bohr Shells) */}
         {activeTab === 'atom_structure' && (
-          <div className="relative w-full flex-1 flex flex-col items-center justify-center">
-            <div className="relative w-44 h-44 rounded-full border-2 border-dashed border-purple-300 flex items-center justify-center bg-white/70">
-              {/* Very tiny positive nucleus in center */}
-              <div className="w-3.5 h-3.5 rounded-full bg-rose-500 shadow-md shadow-rose-500/80 flex items-center justify-center ring-2 ring-rose-200 animate-pulse">
-                <span className="text-[6px] font-bold text-white">+</span>
-              </div>
+          <div className="relative w-full flex-1 flex flex-col items-center justify-center my-1">
+            <svg className="w-56 h-36" viewBox="-110 -70 220 140">
+              {/* Outer boundary representing the atom volume - vast empty space */}
+              <circle cx="0" cy="0" r="64" fill="rgba(243, 232, 255, 0.35)" stroke="#c084fc" strokeWidth="1.5" strokeDasharray="4 3" />
+              <text x="0" y="-52" textAnchor="middle" fontSize="6" fill="#7e22ce" fontWeight="bold" letterSpacing="0.4">
+                BATAS VOLUME ATOM (RUANG KOSONG)
+              </text>
 
-              {/* Orbiting electrons in wide vacuum space */}
-              <div className="absolute w-36 h-36 rounded-full border border-purple-200 animate-spin-slow">
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-400" />
-              </div>
-              <div className="absolute w-28 h-28 rounded-full border border-purple-200 animate-spin-reverse">
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-400" />
-              </div>
+              {/* Tilted conceptual Rutherford orbit 1 (angle -30deg) */}
+              <g transform="rotate(-30)">
+                <ellipse cx="0" cy="0" rx="58" ry="20" fill="none" stroke="#a855f7" strokeWidth="1" strokeDasharray="3 2" opacity="0.65" />
+                <circle r="3.5" fill="#0284c7" stroke="#e0f2fe" strokeWidth="1">
+                  <animateMotion dur="5s" repeatCount="indefinite" path="M -58 0 A 58 20 0 1 0 58 0 A 58 20 0 1 0 -58 0" />
+                </circle>
+              </g>
+
+              {/* Tilted conceptual Rutherford orbit 2 (angle +40deg) */}
+              <g transform="rotate(40)">
+                <ellipse cx="0" cy="0" rx="58" ry="20" fill="none" stroke="#6366f1" strokeWidth="1" strokeDasharray="3 2" opacity="0.65" />
+                <circle r="3.5" fill="#0284c7" stroke="#e0f2fe" strokeWidth="1">
+                  <animateMotion dur="7s" repeatCount="indefinite" path="M 58 0 A 58 20 0 1 0 -58 0 A 58 20 0 1 0 58 0" />
+                </circle>
+              </g>
+
+              {/* Central extremely tiny, dense positive nucleus */}
+              <circle cx="0" cy="0" r="4.5" fill="#e11d48" stroke="#ffe4e6" strokeWidth="1.5">
+                <animate attributeName="r" values="4;5;4" dur="2s" repeatCount="indefinite" />
+              </circle>
+              <text x="0" y="2.2" textAnchor="middle" fontSize="6.5" fill="#ffffff" fontWeight="900" pointerEvents="none">+</text>
+
+              {/* Nucleus indicator tag */}
+              <line x1="0" y1="5.5" x2="0" y2="24" stroke="#e11d48" strokeWidth="0.8" strokeDasharray="1 1" />
+              <rect x="-34" y="25" width="68" height="13" rx="3.5" fill="#ffffff" stroke="#f43f5e" strokeWidth="0.8" />
+              <text x="0" y="34" textAnchor="middle" fontSize="6.5" fill="#be123c" fontWeight="bold">Inti Atom Padat (+)</text>
+            </svg>
+
+            <div className="text-center max-w-md mt-1 px-2">
+              <p className="text-[11px] text-slate-800 font-bold leading-tight">
+                Sebagian besar volume atom merupakan ruang kosong! Inti atom berukuran sangat kecil dibandingkan ukuran keseluruhan atom.
+              </p>
+              <p className="text-[10px] text-slate-600 font-medium mt-0.5">
+                Analogi: Jika inti atom sebesar kelereng di tengah stadion sepak bola, elektron berada di tribun paling atas!
+              </p>
+              <p className="text-[9px] text-purple-700/80 italic mt-0.5 font-medium">
+                *Lintasan elektron ditampilkan sebagai ilustrasi konseptual model Rutherford, bukan kulit elektron dengan tingkat energi Bohr.
+              </p>
             </div>
-
-            <p className="text-[11px] text-slate-700 font-semibold mt-2 text-center max-w-sm">
-              <strong>99.999% Ruang Hampa!</strong> Jika inti atom sebesar kelereng di tengah stadion sepak bola, elektron berada di tribun paling atas!
-            </p>
           </div>
         )}
 
         {/* Tab 3: Maxwell Electrodynamics Paradox */}
         {activeTab === 'maxwell_paradox' && (
-          <div className="relative w-full flex-1 flex flex-col items-center justify-center">
-            <div className="relative w-44 h-44 rounded-full flex items-center justify-center border-2 border-slate-200 bg-white/70">
+          <div className="relative w-full flex-1 flex flex-col items-center justify-center my-1">
+            <div className="mb-1 px-2.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold">
+              ⚠️ Prediksi Berdasarkan Teori Klasik (Bukan Keadaan Sebenarnya)
+            </div>
+
+            <div className="relative w-36 h-36 rounded-full flex items-center justify-center border-2 border-slate-200 bg-white/70">
               {/* Nucleus */}
               <div className="w-4 h-4 rounded-full bg-rose-500 shadow-md shadow-rose-500 flex items-center justify-center text-[8px] font-bold text-white z-10">
                 +
@@ -325,12 +357,12 @@ export function RutherfordSimulator({ onComplete, isCompleted }: { onComplete?: 
         )}
 
         {/* Footer info text */}
-        <div className="w-full text-center">
+        <div className="w-full text-center mt-1">
           <p className="text-[11px] text-slate-500 font-medium">
             {activeTab === 'gold_foil'
               ? 'Hamburan partikel alfa membuktikan keberadaan inti atom pejal di pusat atom.'
               : activeTab === 'atom_structure'
-              ? 'Rasio ukuran inti terhadap keseluruhan atom adalah sekitar 1 : 100.000.'
+              ? 'Ukuran inti atom jauh lebih kecil dibandingkan ukuran keseluruhan atom.'
               : 'Kelemahan Rutherford inilah yang mendorong Niels Bohr merumuskan postulat kuantisasi orbit!'}
           </p>
         </div>
@@ -389,7 +421,7 @@ export function RutherfordSimulator({ onComplete, isCompleted }: { onComplete?: 
       <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200 text-xs text-purple-900 flex items-start gap-2.5 shadow-xs">
         <AlertTriangle className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
         <p className="text-[11px] leading-relaxed">
-          <strong>Aturan Rutherford:</strong> Seluruh muatan positif terkonsentrasi di inti atom yang amat sangat kecil, sedangkan elektron bergerak bebas di ruang hampa sekitarnya.
+          <strong>Aturan Rutherford:</strong> Seluruh muatan positif dan hampir seluruh massa atom terkonsentrasi pada inti atom yang sangat kecil dan padat. Elektron berada di sekitar inti, sedangkan sebagian besar volume atom merupakan ruang kosong.
         </p>
       </div>
     </div>
