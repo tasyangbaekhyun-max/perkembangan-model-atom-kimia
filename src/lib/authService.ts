@@ -96,7 +96,7 @@ const DEFAULT_USERS: RegisteredUser[] = [
     password: 'password123',
     passwordHash: 'password123',
     role: 'student',
-    classCode: 'KIM-X-FASE-E',
+    classCode: 'SITI-0001',
     schoolName: 'SMA Negeri 1 Jakarta',
     createdAt: '2026-01-10T08:00:00.000Z',
     provider: 'local',
@@ -108,8 +108,8 @@ const DEFAULT_USERS: RegisteredUser[] = [
     password: 'password123',
     passwordHash: 'password123',
     role: 'teacher',
-    classCode: 'KLS-SN-001',
-    className: 'Kimia X Fase E (Demo)',
+    classCode: 'SITI-0001',
+    className: 'Kelas Siti Nurhaliza',
     teacherId: 'usr_guru_01',
     schoolName: 'SMA Negeri 1 Jakarta',
     createdAt: '2026-01-10T08:00:00.000Z',
@@ -122,7 +122,7 @@ const DEFAULT_USERS: RegisteredUser[] = [
     password: 'kimia123',
     passwordHash: 'kimia123',
     role: 'student',
-    classCode: 'KIM-X-FASE-E',
+    classCode: 'AHMA-0002',
     schoolName: 'SMA Negeri 1 Jakarta',
     createdAt: '2026-01-01T08:00:00.000Z',
     provider: 'local',
@@ -134,7 +134,9 @@ const DEFAULT_USERS: RegisteredUser[] = [
     password: 'guru123',
     passwordHash: 'guru123',
     role: 'teacher',
-    classCode: 'GURU-KIMIA-X',
+    classCode: 'AHMA-0002',
+    className: 'Kelas Ahmad Hidayat',
+    teacherId: 'usr_demo_teacher_01',
     schoolName: 'SMA Negeri 1 Jakarta',
     createdAt: '2026-01-01T08:00:00.000Z',
     provider: 'local',
@@ -185,7 +187,7 @@ class AuthService {
             // Fallback classCode berdasarkan role jika belum ada di database
             if (!classCode) {
               if (role === 'teacher') {
-                classCode = await this.generateUniqueClassCode()
+                classCode = await this.generateUniqueClassCode(name)
                 className = className || `Kelas ${name}`
                 teacherId = fbUser.uid
                 if (db) {
@@ -267,12 +269,34 @@ class AuthService {
       } else {
         const existingUsers = JSON.parse(raw) as RegisteredUser[]
         let modified = false
+
+        // Tambahkan default user yang belum ada
         for (const defaultUser of DEFAULT_USERS) {
-          if (!existingUsers.some((u) => u.email.toLowerCase() === defaultUser.email.toLowerCase())) {
+          const idx = existingUsers.findIndex((u) => u.email.toLowerCase() === defaultUser.email.toLowerCase())
+          if (idx === -1) {
             existingUsers.push(defaultUser)
             modified = true
+          } else {
+            // Migrasi: perbarui classCode stale (KIM-X-FASE-E / GURU-KIMIA-X / KLS-SN-001) ke kode baru per guru
+            const existing = existingUsers[idx]
+            if (
+              existing.role === 'teacher' &&
+              (!existing.classCode ||
+                existing.classCode === 'KIM-X-FASE-E' ||
+                existing.classCode === 'GURU-KIMIA-X' ||
+                existing.classCode === 'KLS-SN-001')
+            ) {
+              existingUsers[idx] = {
+                ...existing,
+                classCode: defaultUser.classCode,
+                className: defaultUser.className || existing.className,
+                teacherId: defaultUser.teacherId || existing.teacherId,
+              }
+              modified = true
+            }
           }
         }
+
         if (modified) {
           window.localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(existingUsers))
         }
@@ -291,15 +315,15 @@ class AuthService {
             isGeneral: true,
           },
           {
-            classCode: 'KIM-X-FASE-E',
-            className: 'Kimia X Fase E',
+            classCode: 'SITI-0001',
+            className: 'Kelas Siti Nurhaliza',
             teacherId: 'usr_guru_01',
             teacherName: 'Dra. Siti Nurhaliza, M.Pd',
             createdAt: '2026-01-10T08:00:00.000Z',
           },
           {
-            classCode: 'GURU-KIMIA-X',
-            className: 'Kelas Kimia Utama',
+            classCode: 'AHMA-0002',
+            className: 'Kelas Ahmad Hidayat',
             teacherId: 'usr_demo_teacher_01',
             teacherName: 'Dr. Ahmad Hidayat, M.Pd.',
             createdAt: '2026-01-01T08:00:00.000Z',
@@ -307,10 +331,56 @@ class AuthService {
         ]
         window.localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(defaultClasses))
       } else {
-        // Pastikan Kelas Umum selalu ada di storage
+        // Migrasi: ganti kode stale lama dengan kode baru berbasis nama guru
+        const STALE_CODES = ['KIM-X-FASE-E', 'GURU-KIMIA-X', 'KLS-SN-001']
+        const MIGRATION_MAP: Record<string, TeacherClassInfo> = {
+          'KIM-X-FASE-E': {
+            classCode: 'SITI-0001',
+            className: 'Kelas Siti Nurhaliza',
+            teacherId: 'usr_guru_01',
+            teacherName: 'Dra. Siti Nurhaliza, M.Pd',
+            createdAt: '2026-01-10T08:00:00.000Z',
+          },
+          'KLS-SN-001': {
+            classCode: 'SITI-0001',
+            className: 'Kelas Siti Nurhaliza',
+            teacherId: 'usr_guru_01',
+            teacherName: 'Dra. Siti Nurhaliza, M.Pd',
+            createdAt: '2026-01-10T08:00:00.000Z',
+          },
+          'GURU-KIMIA-X': {
+            classCode: 'AHMA-0002',
+            className: 'Kelas Ahmad Hidayat',
+            teacherId: 'usr_demo_teacher_01',
+            teacherName: 'Dr. Ahmad Hidayat, M.Pd.',
+            createdAt: '2026-01-01T08:00:00.000Z',
+          },
+        }
         const parsed = JSON.parse(rawClasses) as TeacherClassInfo[]
-        if (!parsed.some((c) => c.classCode.toUpperCase() === GENERAL_CLASS_CODE)) {
-          parsed.unshift({
+        let classModified = false
+        const migrated: TeacherClassInfo[] = []
+        const seenCodes = new Set<string>()
+
+        for (const cls of parsed) {
+          const upper = cls.classCode.toUpperCase()
+          if (STALE_CODES.includes(upper) && MIGRATION_MAP[upper]) {
+            const newEntry = MIGRATION_MAP[upper]
+            if (!seenCodes.has(newEntry.classCode)) {
+              migrated.push(newEntry)
+              seenCodes.add(newEntry.classCode)
+            }
+            classModified = true
+          } else {
+            if (!seenCodes.has(upper)) {
+              migrated.push(cls)
+              seenCodes.add(upper)
+            }
+          }
+        }
+
+        // Pastikan Kelas Umum selalu ada
+        if (!migrated.some((c) => c.classCode.toUpperCase() === GENERAL_CLASS_CODE)) {
+          migrated.unshift({
             classCode: GENERAL_CLASS_CODE,
             className: GENERAL_CLASS_NAME,
             teacherId: 'general_admin',
@@ -318,7 +388,11 @@ class AuthService {
             createdAt: '2026-01-01T00:00:00.000Z',
             isGeneral: true,
           })
-          window.localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(parsed))
+          classModified = true
+        }
+
+        if (classModified) {
+          window.localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(migrated))
         }
       }
     } catch {
@@ -348,8 +422,9 @@ class AuthService {
         const parsed = JSON.parse(raw) as TeacherClassInfo[]
         if (Array.isArray(parsed) && parsed.length > 0) {
           // Bersihkan kode default statis lama jika ada yang menempel
+          const LEGACY_CODES = new Set(['KIM-X-FASE-E', 'GURU-KIMIA-X', 'KLS-SN-001'])
           const cleaned = parsed.filter(
-            (c) => c.classCode.toUpperCase() !== 'KIM-X-FASE-E' && c.classCode.toUpperCase() !== 'GURU-KIMIA-X'
+            (c) => !LEGACY_CODES.has(c.classCode.toUpperCase())
           )
           if (!cleaned.some((c) => c.classCode.toUpperCase() === GENERAL_CLASS_CODE)) {
             cleaned.unshift(defaultClasses[0])
@@ -469,42 +544,83 @@ class AuthService {
   }
 
   /**
-   * Membuat Kode Akses Kelas Siswa Unik per Guru (Format: KLS-[3 Huruf Guru]-[3 Angka/Huruf Unik] atau KLS-XXXX)
-   * Memastikan setiap guru dan kelas mendapatkan kode akses yang benar-benar berbeda.
+   * Strip gelar akademik dari nama guru (Dra., Dr., Prof., S.Pd., M.Pd., M.Si., S.Si., Gr., Ir., dll.)
+   * Contoh: "Dra. Siti Rahma, M.Pd" -> "Siti Rahma"
    */
-  public async generateUniqueClassCode(teacherName?: string, classOrRombelName?: string): Promise<string> {
-    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ' // Alfanumerik jelas tanpa 0/O/1/I
+  private stripAcademicTitles(fullName: string): string {
+    // Hapus gelar di depan nama (prefix titles)
+    let cleaned = fullName
+      .replace(
+        /^\s*(Prof\.|Drs?\.|Dr\.|Ir\.|Apt\.|Hj\.|H\.|Dra\.|Drs\.|Bapak|Ibu|Pak|Bu)\s+/gi,
+        ''
+      )
+      .trim()
+    // Hapus gelar di belakang nama setelah koma (suffix titles seperti M.Pd, S.Pd, M.Si, dll.)
+    cleaned = cleaned
+      .replace(/,\s*(S\.Pd|M\.Pd|S\.Si|M\.Si|M\.Sc|Ph\.D|M\.T|S\.T|S\.H|M\.H|Gr\.|M\.Kom|S\.Kom|M\.M|M\.A|M\.Ag|S\.Ag|S\.E|M\.E|S\.Farm|Apt\.?|S\.Hut|S\.Hum|M\.Hum|B\.Sc|MBA|M\.Kes|S\.Kes)\.?(\s*,.*)?$/gi,
+        ''
+      )
+      .trim()
+    return cleaned
+  }
 
-    // Ekstrak prefix yang dipersonalisasi dari nama guru atau nama kelas
-    let prefix = 'KLS'
+  /**
+   * Membuat Kode Akses Kelas Siswa Unik per Guru berbasis nama guru.
+   * Format: [NAMA/INISIAL]-[4 DIGIT ANGKA UNIK]
+   * Contoh: "Dra. Siti Rahma, M.Pd"  -> SITI-4829  atau SR-4829
+   *         "Finurika Rohmati"        -> FINU-3194  atau FR-3194
+   *         "Ahmad"                  -> AHMA-7823
+   * Cek ke Firestore & lokal agar dipastikan unik.
+   */
+  public async generateUniqueClassCode(teacherName?: string, _classOrRombelName?: string): Promise<string> {
+    const digits = '0123456789'
+
+    // --- Bangun prefix berbasis nama guru ---
+    let prefix = 'GURU'
     if (teacherName) {
-      // Ambil huruf pertama dari tiap kata nama guru (contoh: "Rika" -> "RIKA", "Siti Rahma" -> "SR")
-      const cleanWords = teacherName.replace(/^(dra|dr|ir|prof|bapak|ibu|pak|bu)\.?\s+/i, '').trim().split(/\s+/)
-      if (cleanWords.length >= 2) {
-        prefix = `KLS-${cleanWords[0].charAt(0).toUpperCase()}${cleanWords[1].charAt(0).toUpperCase()}`
-      } else if (cleanWords.length === 1 && cleanWords[0].length >= 3) {
-        prefix = `KLS-${cleanWords[0].substring(0, 3).toUpperCase()}`
-      }
-    } else if (classOrRombelName) {
-      const cleanRombel = classOrRombelName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
-      if (cleanRombel.length >= 3) {
-        prefix = `KLS-${cleanRombel.substring(0, 3)}`
+      const cleanName = this.stripAcademicTitles(teacherName)
+      const words = cleanName.split(/\s+/).filter(Boolean)
+
+      if (words.length >= 2) {
+        // Dua kata atau lebih: gunakan 4 huruf pertama kata pertama (lebih deskriptif)
+        // Contoh: "Siti Rahma" -> SITI, atau inisial jika kata pertama pendek: "Ana Budi" -> AB
+        const firstWord = words[0].replace(/[^A-Za-z]/g, '').toUpperCase()
+        const secondWord = words[1].replace(/[^A-Za-z]/g, '').toUpperCase()
+        if (firstWord.length >= 4) {
+          prefix = firstWord.substring(0, 4) // SITI, FINU, AHMA
+        } else {
+          // Gunakan inisial semua kata (maks 4 karakter)
+          prefix = words
+            .map((w) => w.replace(/[^A-Za-z]/g, '').charAt(0).toUpperCase())
+            .join('')
+            .substring(0, 4)
+          if (prefix.length < 2) prefix = firstWord.substring(0, 4) || 'GURU'
+        }
+        // Pastikan minimal 2 karakter, tambah dari kata kedua jika perlu
+        if (prefix.length < 2) prefix = (firstWord + secondWord).substring(0, 4)
+      } else if (words.length === 1) {
+        const word = words[0].replace(/[^A-Za-z]/g, '').toUpperCase()
+        prefix = word.length >= 4 ? word.substring(0, 4) : word || 'GURU'
       }
     }
+
+    // Pastikan prefix hanya alfanumerik kapital, minimal 2 karakter
+    prefix = prefix.replace(/[^A-Z0-9]/g, '').toUpperCase()
+    if (prefix.length < 2) prefix = 'GURU'
 
     const localClasses = this.getRegisteredClasses()
     const existingLocalCodes = new Set(localClasses.map((c) => c.classCode.toUpperCase()))
     existingLocalCodes.add(GENERAL_CLASS_CODE)
 
     let attempts = 0
-    while (attempts < 50) {
+    while (attempts < 100) {
       attempts++
-      let randomPart = ''
-      const randomLength = prefix.includes('-') ? 3 : 4
-      for (let i = 0; i < randomLength; i++) {
-        randomPart += chars.charAt(Math.floor(Math.random() * chars.length))
+      // Buat 4 digit angka acak
+      let numPart = ''
+      for (let i = 0; i < 4; i++) {
+        numPart += digits.charAt(Math.floor(Math.random() * digits.length))
       }
-      const candidate = `${prefix}${prefix.endsWith('-') ? '' : '-'}${randomPart}`
+      const candidate = `${prefix}-${numPart}` // e.g. SITI-4829
 
       // Cek lokal
       if (existingLocalCodes.has(candidate)) continue
@@ -522,8 +638,8 @@ class AuthService {
       return candidate
     }
 
-    // Fallback jika loop habis
-    return `KLS-${Date.now().toString(36).substring(3, 7).toUpperCase()}`
+    // Fallback jika loop habis (sangat jarang terjadi)
+    return `${prefix}-${Date.now().toString().slice(-4)}`
   }
 
   /**
@@ -813,8 +929,8 @@ class AuthService {
       effectiveClassName = inputClassName
         ? (inputClassName.toLowerCase().includes(formattedName.toLowerCase()) ? inputClassName : `Kelas ${formattedName} (${inputClassName})`)
         : `Kelas ${formattedName}`
-      // Generate Kode Akses Kelas Siswa Unik (misal: KLS-XXXX)
-      effectiveClassCode = await this.generateUniqueClassCode()
+      // Generate Kode Akses Kelas Siswa Unik berbasis nama guru (misal: SITI-4829, FINU-3194)
+      effectiveClassCode = await this.generateUniqueClassCode(formattedName, params.className?.trim())
     } else {
       // 2. Siswa mendaftar: Kode Kelas (mendukung Kode Kelas Umum UMUM-01 atau kode kelas guru)
       const rawStudentCode = (params.classCode || '').trim().toUpperCase()
@@ -1072,8 +1188,9 @@ class AuthService {
               if (data.schoolName) schoolName = data.schoolName
 
               // Jika guru belum punya kode kelas unik, generate kode unik
-              if (role === 'teacher' && (!classCode || classCode === 'KIM-X-FASE-E')) {
-                classCode = await this.generateUniqueClassCode()
+              const STALE = new Set(['KIM-X-FASE-E', 'GURU-KIMIA-X', 'KLS-SN-001'])
+              if (role === 'teacher' && (!classCode || STALE.has(classCode.toUpperCase()))) {
+                classCode = await this.generateUniqueClassCode(name)
                 className = className || `Kelas ${name}`
                 teacherId = cred.user.uid
                 await setDoc(doc(db, 'classes', classCode), {
@@ -1110,7 +1227,7 @@ class AuthService {
               }
             } else {
               if (role === 'teacher') {
-                classCode = await this.generateUniqueClassCode()
+                classCode = await this.generateUniqueClassCode(name)
                 className = className || `Kelas ${name}`
                 teacherId = cred.user.uid
                 await setDoc(doc(db, 'classes', classCode), {
@@ -1200,8 +1317,9 @@ class AuthService {
       }
     }
 
-    if (user.role === 'teacher' && (!user.classCode || user.classCode === 'KIM-X-FASE-E')) {
-      user.classCode = await this.generateUniqueClassCode()
+    const STALE_TEACHER_CODES = new Set(['KIM-X-FASE-E', 'GURU-KIMIA-X', 'KLS-SN-001'])
+    if (user.role === 'teacher' && (!user.classCode || STALE_TEACHER_CODES.has(user.classCode.toUpperCase()))) {
+      user.classCode = await this.generateUniqueClassCode(user.name)
       user.className = user.className || `Kelas ${user.name}`
       const localClasses = this.getRegisteredClasses()
       if (!localClasses.some((c) => c.classCode === user.classCode)) {
@@ -1235,7 +1353,7 @@ class AuthService {
       name: user.name,
       email: user.email,
       role: expectedRole || user.role,
-      classCode: customClassCode || user.classCode || (user.role === 'teacher' ? 'KLS-TEACHER' : GENERAL_CLASS_CODE),
+      classCode: customClassCode || user.classCode || (user.role === 'teacher' ? await this.generateUniqueClassCode(user.name) : GENERAL_CLASS_CODE),
       className: user.className,
       teacherId: user.teacherId,
       schoolName: user.schoolName || 'SMA Negeri 1 Jakarta',

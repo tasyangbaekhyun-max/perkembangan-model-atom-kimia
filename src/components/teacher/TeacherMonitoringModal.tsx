@@ -90,12 +90,18 @@ export function TeacherMonitoringModal({ isOpen, onClose }: TeacherMonitoringMod
 
   // Salin Kode Kelas ke Clipboard
   // Kode Akses Kelas Guru harus unik milik guru yang sedang login
-  const teacherSpecificCode =
-    (currentTeacherAccess.classCode && currentTeacherAccess.classCode !== 'KIM-X-FASE-E' && currentTeacherAccess.classCode !== GENERAL_CLASS_CODE)
-      ? currentTeacherAccess.classCode
-      : teacherClasses.find((c) => c.teacherId === currentTeacherAccess.userId && !c.isGeneral && c.classCode !== 'KIM-X-FASE-E')?.classCode
-        || currentTeacherAccess.classCode
-        || (teacherClasses.find((c) => !c.isGeneral)?.classCode ?? GENERAL_CLASS_CODE)
+  const STALE_CODES = ['KIM-X-FASE-E', 'GURU-KIMIA-X', 'KLS-SN-001', GENERAL_CLASS_CODE]
+  const isValidTeacherCode = (code?: string) =>
+    !!code && !STALE_CODES.includes(code.toUpperCase())
+
+  const teacherSpecificCode: string =
+    isValidTeacherCode(currentTeacherAccess.classCode)
+      ? currentTeacherAccess.classCode!
+      : (teacherClasses.find(
+          (c) => c.teacherId === currentTeacherAccess.userId && !c.isGeneral && isValidTeacherCode(c.classCode)
+        )?.classCode ??
+        teacherClasses.find((c) => !c.isGeneral && isValidTeacherCode(c.classCode))?.classCode ??
+        GENERAL_CLASS_CODE)
 
   const activeClassCodeToCopy =
     selectedClassFilter !== 'all' && selectedClassFilter !== GENERAL_CLASS_CODE
