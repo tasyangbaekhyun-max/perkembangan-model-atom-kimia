@@ -16,6 +16,8 @@ export interface Bab4User {
   email?: string
   role: UserRole
   classCode?: string
+  className?: string
+  teacherId?: string
   schoolName?: string
   createdAt: string
   lastLoginAt: string

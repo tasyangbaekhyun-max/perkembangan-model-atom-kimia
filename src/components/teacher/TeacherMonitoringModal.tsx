@@ -13,7 +13,11 @@ import {
   CheckCircle2,
   Clock,
   Radio,
-  BookOpen
+  BookOpen,
+  Copy,
+  Check,
+  School,
+  Filter
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import {
@@ -24,6 +28,7 @@ import {
 } from '../../services/learningProgressService'
 import { ATOM_MODELS } from '../../data/atomModels'
 import { isFirebaseConfigured } from '../../lib/firebase'
+import { authService, GENERAL_CLASS_CODE, GENERAL_CLASS_NAME, type TeacherClassInfo } from '../../lib/authService'
 
 interface TeacherMonitoringModalProps {
   isOpen: boolean
@@ -33,14 +38,82 @@ interface TeacherMonitoringModalProps {
 type FilterStatus = 'all' | 'completed' | 'in_progress' | 'not_started'
 
 export function TeacherMonitoringModal({ isOpen, onClose }: TeacherMonitoringModalProps) {
+  const [currentTeacherAccess, setCurrentTeacherAccess] = useState(() => authService.getAccess())
   const [students, setStudents] = useState<StudentProgressSummary[]>(() =>
     learningProgressService.getAllStudentsProgress()
   )
+  const [teacherClasses, setTeacherClasses] = useState<TeacherClassInfo[]>([])
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [isSyncing, setIsSyncing] = useState(false)
   const [exportSuccess, setExportSuccess] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
   const [selectedStudentDetail, setSelectedStudentDetail] = useState<StudentProgressSummary | null>(null)
+
+  // Ambil data profil guru & seluruh kelas dinamis dari Firebase / lokal
+  useEffect(() => {
+    if (!isOpen) return
+    const access = authService.getAccess()
+    setCurrentTeacherAccess(access)
+
+    let active = true
+
+    // Muat daftar kelas secara dinamis
+    authService.fetchDynamicClasses().then((classes) => {
+      if (!active) return
+
+      // Pastikan kelas guru yang login ada di daftar teratas bila belum ada
+      if (access.classCode && !classes.some((c) => c.classCode.toUpperCase() === access.classCode?.toUpperCase())) {
+        classes.push({
+          classCode: access.classCode,
+          className: access.className || `Kelas ${access.name}`,
+          teacherId: access.userId,
+          teacherName: access.name,
+        })
+      }
+
+      setTeacherClasses(classes)
+
+      // Default seleksi: Pilih kelas milik guru saat ini jika ada, atau 'all' (Semua Kelas)
+      if (access.classCode && access.role === 'teacher') {
+        setSelectedClassFilter(access.classCode)
+      } else {
+        setSelectedClassFilter('all')
+      }
+    })
+
+    return () => {
+      active = false
+    }
+  }, [isOpen])
+
+  // Salin Kode Kelas ke Clipboard
+  // Kode Akses Kelas Guru harus unik milik guru yang sedang login
+  const teacherSpecificCode =
+    (currentTeacherAccess.classCode && currentTeacherAccess.classCode !== 'KIM-X-FASE-E' && currentTeacherAccess.classCode !== GENERAL_CLASS_CODE)
+      ? currentTeacherAccess.classCode
+      : teacherClasses.find((c) => c.teacherId === currentTeacherAccess.userId && !c.isGeneral && c.classCode !== 'KIM-X-FASE-E')?.classCode
+        || currentTeacherAccess.classCode
+        || (teacherClasses.find((c) => !c.isGeneral)?.classCode ?? GENERAL_CLASS_CODE)
+
+  const activeClassCodeToCopy =
+    selectedClassFilter !== 'all' && selectedClassFilter !== GENERAL_CLASS_CODE
+      ? selectedClassFilter
+      : teacherSpecificCode
+
+  const handleCopyCode = async (codeToCopy = activeClassCodeToCopy) => {
+    try {
+      if (navigator.clipboard && codeToCopy) {
+        await navigator.clipboard.writeText(codeToCopy)
+        setCopiedCode(true)
+        setTimeout(() => setCopiedCode(false), 2500)
+      }
+    } catch {
+      // Fallback prompt jika clipboard ditolak
+      window.prompt('Salin Kode Kelas Siswa:', codeToCopy)
+    }
+  }
 
   // Manual refresh handler
   const handleManualRefresh = async () => {
@@ -80,8 +153,41 @@ export function TeacherMonitoringModal({ isOpen, onClose }: TeacherMonitoringMod
     }
   }, [isOpen])
 
-  // Filter students based on search and status
-  const filteredStudents = students.filter((s) => {
+  // Filter Siswa Berdasarkan Pilihan Kelas ("Kelas Umum" + daftar kelas sesuai nama guru yang terdaftar):
+  // 1. Jika selectedClassFilter === 'all': Tampilkan seluruh siswa yang terpetakan ke kelas guru ini atau kelas umum jika mode admin
+  // 2. Jika selectedClassFilter === GENERAL_CLASS_CODE: Tampilkan seluruh siswa yang mendaftar menggunakan Kode Kelas Umum atau belum terikat kode kelas guru tertentu
+  // 3. Jika selectedClassFilter === kode guru tertentu: Tampilkan siswa yang terpetakan ke kelas guru tersebut
+  const scopedByClassStudents = students.filter((s) => {
+    const studentCode = (s.classCode || '').toUpperCase().trim()
+
+    // A. Filter Kelas Umum
+    if (selectedClassFilter === GENERAL_CLASS_CODE) {
+      return (
+        studentCode === GENERAL_CLASS_CODE ||
+        studentCode === 'UMUM' ||
+        studentCode === 'KELAS-UMUM' ||
+        studentCode === 'BELUM GABUNG KELAS' ||
+        !studentCode
+      )
+    }
+
+    // B. Filter Semua Kelas
+    if (selectedClassFilter === 'all') {
+      return true
+    }
+
+    // C. Filter Kelas Spesifik Guru
+    const targetCode = selectedClassFilter.toUpperCase().trim()
+    if (studentCode === targetCode) return true
+    if (s.teacherId && teacherClasses.some((c) => c.classCode.toUpperCase() === targetCode && c.teacherId === s.teacherId)) {
+      return true
+    }
+
+    return false
+  })
+
+  // Filter 3: Pencarian dan status belajar (Tuntas / Sedang Berjalan / Belum Mulai)
+  const filteredStudents = scopedByClassStudents.filter((s) => {
     const sName = (s.name || '').toLowerCase()
     const sEmail = (s.email || '').toLowerCase()
     const sClass = (s.classCode || '').toLowerCase()
@@ -103,13 +209,13 @@ export function TeacherMonitoringModal({ isOpen, onClose }: TeacherMonitoringMod
     return true
   })
 
-  // Class Statistics
-  const totalStudents = students.length
+  // Class Statistics (Dihitung khusus dari siswa kelas guru bersangkutan)
+  const totalStudents = scopedByClassStudents.length
   const avgXP =
     totalStudents > 0
-      ? Math.round(students.reduce((acc, curr) => acc + curr.totalXP, 0) / totalStudents)
+      ? Math.round(scopedByClassStudents.reduce((acc, curr) => acc + curr.totalXP, 0) / totalStudents)
       : 0
-  const quizSubmissions = students.filter((s) => typeof s.quizScore === 'number')
+  const quizSubmissions = scopedByClassStudents.filter((s) => typeof s.quizScore === 'number')
   const avgQuizScore =
     quizSubmissions.length > 0
       ? Math.round(
@@ -117,17 +223,17 @@ export function TeacherMonitoringModal({ isOpen, onClose }: TeacherMonitoringMod
             quizSubmissions.length
         )
       : 0
-  const fullyCompletedCount = students.filter(
+  const fullyCompletedCount = scopedByClassStudents.filter(
     (s) => s.totalXP >= TOTAL_MAX_XP || s.completedModelsCount === 6
   ).length
-  const inProgressCount = students.filter((s) => s.totalXP > 0 && s.totalXP < TOTAL_MAX_XP).length
-  const notStartedCount = students.filter((s) => s.totalXP === 0).length
+  const inProgressCount = scopedByClassStudents.filter((s) => s.totalXP > 0 && s.totalXP < TOTAL_MAX_XP).length
+  const notStartedCount = scopedByClassStudents.filter((s) => s.totalXP === 0).length
 
-  // Download Rekap ke Excel (.xlsx) menggunakan SheetJS
+  // Download Rekap ke Excel (.xlsx) menggunakan SheetJS (Hanya siswa kelas guru bersangkutan)
   const handleExportExcel = () => {
     try {
-      if (students.length === 0) {
-        alert('Belum ada data siswa untuk diunduh.')
+      if (filteredStudents.length === 0) {
+        alert('Belum ada data siswa di kelas ini untuk diunduh.')
         return
       }
 
@@ -166,7 +272,7 @@ export function TeacherMonitoringModal({ isOpen, onClose }: TeacherMonitoringMod
           'No': index + 1,
           'Nama Lengkap Siswa': student.name || 'Siswa',
           'Email Siswa': student.email || '-',
-          'Kelas': student.classCode || 'KIM-X-FASE-E',
+          'Kode Kelas': student.classCode || activeClassCodeToCopy,
           'Democritus (4 Tahap)': stagesPerModel['Democritus dari Abdera'] || '0/4 Tahap',
           'John Dalton (4 Tahap)': stagesPerModel['John Dalton'] || '0/4 Tahap',
           'J.J. Thomson (4 Tahap)': stagesPerModel['Sir Joseph John Thomson'] || '0/4 Tahap',
@@ -207,12 +313,13 @@ export function TeacherMonitoringModal({ isOpen, onClose }: TeacherMonitoringMod
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Rekap Progres Siswa')
 
-      // Generate nama file otomatis: Rekap_Data_Siswa_AtomLab_YYYY-MM-DD.xlsx
+      // Generate nama file otomatis dengan kelas guru
       const today = new Date()
       const yyyy = today.getFullYear()
       const mm = String(today.getMonth() + 1).padStart(2, '0')
       const dd = String(today.getDate()).padStart(2, '0')
-      const filename = `Rekap_Data_Siswa_AtomLab_${yyyy}-${mm}-${dd}.xlsx`
+      const classSlug = selectedClassFilter !== 'all' ? `_${selectedClassFilter}` : ''
+      const filename = `Rekap_Data_Siswa${classSlug}_${yyyy}-${mm}-${dd}.xlsx`
 
       // Tulis file Excel dan mulai download di browser
       XLSX.writeFile(workbook, filename)
@@ -276,6 +383,79 @@ export function TeacherMonitoringModal({ isOpen, onClose }: TeacherMonitoringMod
             >
               <X className="w-5 h-5" />
             </button>
+          </div>
+        </div>
+
+        {/* ── Banner Kode Kelas Siswa Guru & Filter Kelas Dinamis (Aturan 1, 2, 3) ──────────────── */}
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 px-6 py-3 border-b border-amber-300 flex flex-wrap items-center justify-between gap-3 text-slate-900 shrink-0 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-slate-950 text-amber-400 font-black flex items-center justify-center shrink-0 shadow-xs">
+              <School className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">
+                  Kode Akses Kelas Guru:
+                </span>
+                <span className="px-3 py-1 rounded-xl bg-slate-950 text-amber-300 font-mono font-black text-sm tracking-wider shadow-inner">
+                  {teacherSpecificCode}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyCode(teacherSpecificCode)}
+                  className={`px-3 py-1 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer shadow-xs ${
+                    copiedCode
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white hover:bg-slate-100 text-slate-900'
+                  }`}
+                  title="Salin Kode Akses Kelas Khusus Guru Ini"
+                >
+                  {copiedCode ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-white" />
+                      <span>Kode Tersalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-slate-700" />
+                      <span>Salin Kode</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Badge Kode Kelas Umum */}
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-600/20 border border-amber-700/20 text-slate-900 text-xs font-bold">
+                  <span>Kelas Umum:</span>
+                  <span className="font-mono bg-white/80 px-1.5 py-0.5 rounded text-[11px]">{GENERAL_CLASS_CODE}</span>
+                </div>
+              </div>
+              <p className="text-[11px] font-medium text-slate-800 mt-0.5">
+                Bagikan kode unik guru Anda agar siswa masuk ke kelas Anda, atau arahkan siswa umum menggunakan kode <strong>{GENERAL_CLASS_CODE}</strong>.
+              </p>
+            </div>
+          </div>
+
+          {/* Selector Dropdown Pilihan Kelas Dinamis ("Kelas Umum" + daftar kelas sesuai nama guru) */}
+          <div className="flex items-center gap-2 bg-amber-600/20 p-1.5 rounded-2xl border border-amber-600/30">
+            <Filter className="w-3.5 h-3.5 text-slate-900 ml-1.5" />
+            <span className="text-xs font-bold text-slate-950">Filter Kelas:</span>
+            <select
+              value={selectedClassFilter}
+              onChange={(e) => setSelectedClassFilter(e.target.value)}
+              className="px-2.5 py-1 bg-white rounded-xl text-xs font-bold text-slate-900 border border-amber-300 focus:outline-none cursor-pointer max-w-[260px]"
+            >
+              <option value="all">🌐 Semua Kelas ({students.length} Siswa)</option>
+              <option value={GENERAL_CLASS_CODE}>
+                🏫 {GENERAL_CLASS_NAME} ({GENERAL_CLASS_CODE})
+              </option>
+              {teacherClasses
+                .filter((cls) => cls.classCode.toUpperCase() !== GENERAL_CLASS_CODE)
+                .map((cls) => (
+                  <option key={cls.classCode} value={cls.classCode}>
+                    👤 {cls.className} ({cls.classCode})
+                  </option>
+                ))}
+            </select>
           </div>
         </div>
 
@@ -351,7 +531,7 @@ export function TeacherMonitoringModal({ isOpen, onClose }: TeacherMonitoringMod
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Semua ({students.length})
+                Semua ({totalStudents})
               </button>
               <button
                 onClick={() => setFilterStatus('completed')}

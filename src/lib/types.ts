@@ -7,6 +7,8 @@ export interface UserAccess {
   alias: string // Format: "Nama Siswa (Kode Kelas)"
   role: UserRole
   classCode?: string
+  className?: string
+  teacherId?: string
   schoolName?: string
   isAuthenticated: boolean
 }

@@ -11,6 +11,7 @@ import {
   GraduationCap
 } from 'lucide-react'
 import { authService, type UserAccess, isFirebaseConfigured, firebaseConfig } from '../../lib'
+import { GENERAL_CLASS_CODE } from '../../lib/authService'
 
 type AuthMode = 'login' | 'register' | 'forgot'
 
@@ -28,7 +29,8 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [fullName, setFullName] = useState('')
-  const [classCode, setClassCode] = useState('KIM-X-FASE-E')
+  const [classCode, setClassCode] = useState(GENERAL_CLASS_CODE)
+  const [teacherClassName, setTeacherClassName] = useState('')
   const [role, setRole] = useState<'student' | 'teacher'>('student')
   const [lockedRole, setLockedRole] = useState<'student' | 'teacher' | null>(null)
   const [teacherPasskey, setTeacherPasskey] = useState('')
@@ -150,6 +152,11 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
 
     // Verifikasi Keamanan Khusus Mode Guru
     if (role === 'teacher') {
+      if (!teacherClassName.trim()) {
+        setErrorMessage('Nama Kelas / Rombel yang dibuat guru wajib diisi (contoh: KIM-X-FASE-E atau XIF-9).')
+        return
+      }
+
       const trimmedTeacherPasskey = teacherPasskey.trim()
       if (!trimmedTeacherPasskey) {
         setErrorMessage('Sandi Verifikasi Guru wajib diisi. Silakan cek sandi resmi di Buku Panduan Guru.')
@@ -171,16 +178,20 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
         email,
         password,
         confirmPassword,
-        classCode: role === 'student' ? classCode.trim().toUpperCase() : (classCode.trim().toUpperCase() || 'GURU-KIMIA-X'),
+        classCode: role === 'student' ? classCode.trim().toUpperCase() : undefined,
+        className: role === 'teacher' ? teacherClassName.trim() : undefined,
         role,
         rememberDevice,
       })
 
       if (res.success && res.user) {
-        setSuccessMessage('Pendaftaran berhasil! Mengalihkan ke ruang belajar...')
+        const welcomeCodeMsg = res.user.role === 'teacher' && res.user.classCode
+          ? `Pendaftaran berhasil! Kode Akses Kelas Anda: ${res.user.classCode}. Mengalihkan...`
+          : 'Pendaftaran berhasil! Mengalihkan ke ruang belajar...'
+        setSuccessMessage(welcomeCodeMsg)
         setTimeout(() => {
           if (res.user) onSuccessLogin(res.user)
-        }, 600)
+        }, 700)
       } else {
         setErrorMessage(res.error || 'Gagal mendaftar. Silakan coba kembali.')
       }
@@ -601,27 +612,32 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                 {/* Kolom Khusus KODE KELAS untuk Mode Siswa */}
                 {role === 'student' && (
                   <div className="space-y-1.5 animate-fade-in">
-                    <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                         <GraduationCap className="w-3.5 h-3.5 text-rose-500" />
-                        <span>Kode Kelas Kimia</span>
-                      </span>
-                      <span className="text-[10px] text-rose-600 font-bold px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200">
-                        *Wajib Siswa
-                      </span>
-                    </label>
+                        <span>Kode Kelas</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setClassCode(GENERAL_CLASS_CODE)}
+                        className="text-[10px] text-indigo-700 hover:text-indigo-900 font-bold px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition cursor-pointer"
+                        title="Klik untuk memakai Kode Kelas Umum"
+                      >
+                        Gunakan Kelas Umum ({GENERAL_CLASS_CODE})
+                      </button>
+                    </div>
                     <div className="relative">
                       <input
                         type="text"
                         value={classCode}
-                        onChange={(e) => setClassCode(e.target.value.toUpperCase())}
-                        placeholder="Contoh: KIM-X-FASE-E"
+                        onChange={(e) => setClassCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                        placeholder={`Contoh: KLS-XXXX atau ${GENERAL_CLASS_CODE}`}
                         required
                         className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-mono font-bold text-slate-800 text-sm placeholder:text-slate-400 uppercase focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
                       />
                     </div>
-                    <p className="text-[10px] text-slate-500 font-medium">
-                      Siswa harus masuk sesuai kode kelas yang diberikan oleh guru masing-masing.
+                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                      Masukkan kode kelas dari guru kimia Anda. Jika belum memiliki kode guru, gunakan kode <strong>{GENERAL_CLASS_CODE}</strong> untuk masuk ke <em>Kelas Umum</em>.
                     </p>
                   </div>
                 )}
@@ -813,30 +829,63 @@ export function AuthView({ onSuccessLogin, onContinueAsGuest }: AuthViewProps) {
                   </button>
                 </div>
 
-                {/* Kode Kelas Khusus Mode Siswa (Wajib Diisi) */}
+                {/* Kode Kelas Khusus Mode Siswa (Wajib Diisi & Ditautkan ke Guru) */}
                 {role === 'student' && (
                   <div className="space-y-1.5 animate-fade-in">
-                    <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                         <GraduationCap className="w-3.5 h-3.5 text-rose-500" />
-                        <span>Kode Kelas Kimia</span>
+                        <span>Kode Kelas Masuk</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setClassCode(GENERAL_CLASS_CODE)}
+                        className="text-[10px] text-indigo-700 hover:text-indigo-900 font-bold px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition cursor-pointer"
+                        title="Klik untuk memilih Kode Kelas Umum"
+                      >
+                        Gunakan Kelas Umum ({GENERAL_CLASS_CODE})
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={classCode}
+                        onChange={(e) => setClassCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                        placeholder={`Contoh: KLS-XXXX atau ${GENERAL_CLASS_CODE}`}
+                        required
+                        className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-mono font-bold text-slate-800 text-sm placeholder:text-slate-400 uppercase focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                      Masukkan Kode Kelas unik dari Guru Anda agar terekap ke kelas guru, atau gunakan kode <strong>{GENERAL_CLASS_CODE}</strong> jika Anda ingin belajar mandiri di <em>Kelas Umum</em>.
+                    </p>
+                  </div>
+                )}
+
+                {/* Input Nama Kelas / Rombel Khusus Mode Guru */}
+                {role === 'teacher' && (
+                  <div className="space-y-1.5 animate-fade-in">
+                    <label className="text-[11px] font-bold text-amber-950 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <GraduationCap className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Nama Kelas / Rombel yang Dibuat Guru</span>
                       </span>
-                      <span className="text-[10px] text-rose-600 font-bold px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200">
-                        *Wajib Siswa
+                      <span className="text-[10px] text-amber-700 font-bold px-2 py-0.5 rounded-md bg-amber-100/80 border border-amber-300">
+                        *Wajib Guru
                       </span>
                     </label>
                     <div className="relative">
                       <input
                         type="text"
-                        value={classCode}
-                        onChange={(e) => setClassCode(e.target.value.toUpperCase())}
-                        placeholder="Contoh: KIM-X-FASE-E"
+                        value={teacherClassName}
+                        onChange={(e) => setTeacherClassName(e.target.value)}
+                        placeholder="Contoh: KIM-X-FASE-E atau XIF-9"
                         required
-                        className="w-full px-4 py-3 rounded-xl border border-rose-200/80 font-mono font-bold text-slate-800 text-sm placeholder:text-slate-400 uppercase focus:outline-none focus:border-rose-400 focus:ring-3 focus:ring-rose-100 transition bg-rose-50/20"
+                        className="w-full px-4 py-3 rounded-xl border border-amber-300 font-medium text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:border-amber-500 focus:ring-3 focus:ring-amber-200 transition bg-white"
                       />
                     </div>
-                    <p className="text-[10px] text-slate-500 font-medium">
-                      Siswa wajib mendaftar menggunakan kode kelas yang diberikan oleh guru kimia Anda.
+                    <p className="text-[10px] text-amber-800 font-medium">
+                      Setelah mendaftar, sistem otomatis menghasilkan <strong>Kode Akses Kelas Siswa</strong> unik yang dapat Anda bagikan kepada siswa.
                     </p>
                   </div>
                 )}

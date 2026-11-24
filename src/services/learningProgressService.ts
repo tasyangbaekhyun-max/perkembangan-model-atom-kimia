@@ -89,6 +89,8 @@ export interface StudentProgressSummary {
   email?: string
   alias: string
   classCode: string
+  className?: string
+  teacherId?: string
   totalXP: number // 0 s.d. 600 XP
   completedStages: string[] // Format: `${modelId}_stage_${stageNumber}`
   completedModelsCount: number // 0 s.d. 6 model
@@ -244,6 +246,8 @@ class LearningProgressService {
       email: userAccess.email,
       alias: userAccess.alias,
       classCode: userAccess.classCode || 'KIM-X-FASE-E',
+      className: userAccess.className,
+      teacherId: userAccess.teacherId,
       totalXP: 0,
       completedStages: [],
       completedModelsCount: 0,
@@ -265,6 +269,8 @@ class LearningProgressService {
           parsed.name = userAccess.name
           parsed.alias = userAccess.alias
           parsed.classCode = userAccess.classCode || 'KIM-X-FASE-E'
+          parsed.className = userAccess.className || parsed.className
+          parsed.teacherId = userAccess.teacherId || parsed.teacherId
           return parsed
         }
       }
@@ -493,6 +499,8 @@ class LearningProgressService {
           email: progress.email || '',
           alias: progress.alias,
           classCode: progress.classCode,
+          className: progress.className || null,
+          teacherId: progress.teacherId || null,
           totalXP: progress.totalXP,
           completedStages: progress.completedStages,
           completedModelsCount: progress.completedModelsCount,
@@ -551,6 +559,8 @@ class LearningProgressService {
             email: data.email || undefined,
             alias: data.alias || data.name || 'Siswa',
             classCode: data.classCode || 'KIM-X-FASE-E',
+            className: data.className || undefined,
+            teacherId: data.teacherId || undefined,
             totalXP,
             completedStages: stages,
             completedModelsCount,
@@ -591,6 +601,8 @@ class LearningProgressService {
               email: udata.email || undefined,
               alias: udata.name || 'Siswa',
               classCode: udata.classCode || 'KIM-X-FASE-E',
+              className: udata.className || undefined,
+              teacherId: udata.teacherId || undefined,
               totalXP: 0,
               completedStages: [],
               completedModelsCount: 0,
@@ -608,6 +620,8 @@ class LearningProgressService {
             if ((!existing.classCode || existing.classCode === 'KIM-X-FASE-E') && udata.classCode) {
               existing.classCode = udata.classCode
             }
+            if (!existing.className && udata.className) existing.className = udata.className
+            if (!existing.teacherId && udata.teacherId) existing.teacherId = udata.teacherId
           }
         })
       } catch (err) {

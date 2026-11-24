@@ -26,7 +26,9 @@ import {
 import {
   doc,
   getDoc,
+  getDocs,
   setDoc,
+  collection,
   serverTimestamp,
 } from 'firebase/firestore'
 import {
@@ -37,8 +39,21 @@ import {
   mapFirebaseAuthError,
 } from './firebase'
 
+export const GENERAL_CLASS_CODE = 'UMUM-01'
+export const GENERAL_CLASS_NAME = 'Kelas Umum'
+
 const AUTH_STORAGE_KEY = 'atomlab_sdk_auth_session'
 const USERS_STORAGE_KEY = 'atomlab_registered_users'
+const CLASSES_STORAGE_KEY = 'atomlab_registered_classes'
+
+export interface TeacherClassInfo {
+  classCode: string
+  className: string
+  teacherId: string
+  teacherName?: string
+  createdAt?: string
+  isGeneral?: boolean
+}
 
 export interface StoredSession {
   userId: string
@@ -46,6 +61,8 @@ export interface StoredSession {
   email?: string
   role: 'student' | 'teacher' | 'admin'
   classCode?: string
+  className?: string
+  teacherId?: string
   schoolName?: string
   token: string
   expiresAt: string
@@ -60,6 +77,8 @@ export interface RegisteredUser {
   passwordHash?: string
   role: 'student' | 'teacher' | 'admin'
   classCode?: string
+  className?: string
+  teacherId?: string
   schoolName?: string
   createdAt: string
   provider: 'local' | 'google' | 'firebase-email'
@@ -143,7 +162,9 @@ class AuthService {
           try {
             let name = fbUser.displayName || fbUser.email?.split('@')[0] || 'Siswa Kimia'
             let role: 'student' | 'teacher' | 'admin' = 'student'
-            let classCode = 'KIM-X-FASE-E'
+            let classCode = ''
+            let className: string | undefined = undefined
+            let teacherId: string | undefined = undefined
             let schoolName = 'SMA Negeri 1 Jakarta'
 
             if (db) {
@@ -154,6 +175,33 @@ class AuthService {
                 if (data.role) role = data.role
                 if (data.classCode) classCode = data.classCode
                 if (data.schoolName) schoolName = data.schoolName
+                if (data.className) className = data.className
+                if (data.teacherId) teacherId = data.teacherId
+              }
+            }
+
+            // Fallback classCode berdasarkan role jika belum ada di database
+            if (!classCode) {
+              if (role === 'teacher') {
+                classCode = await this.generateUniqueClassCode()
+                className = className || `Kelas ${name}`
+                teacherId = fbUser.uid
+                if (db) {
+                  try {
+                    await setDoc(doc(db, 'users', fbUser.uid), { classCode, className, teacherId }, { merge: true })
+                    await setDoc(doc(db, 'classes', classCode), {
+                      classCode,
+                      className,
+                      teacherId: fbUser.uid,
+                      teacherName: name,
+                      createdAt: serverTimestamp(),
+                    }, { merge: true })
+                  } catch {
+                    // ignore
+                  }
+                }
+              } else {
+                classCode = GENERAL_CLASS_CODE
               }
             }
 
@@ -164,6 +212,8 @@ class AuthService {
               email: fbUser.email || undefined,
               role,
               classCode,
+              className,
+              teacherId,
               schoolName,
               token,
               expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
@@ -225,8 +275,371 @@ class AuthService {
           window.localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(existingUsers))
         }
       }
+
+      // Inisialisasi default class mappings jika belum ada (Termasuk Kelas Umum UMUM-01)
+      const rawClasses = window.localStorage.getItem(CLASSES_STORAGE_KEY)
+      if (!rawClasses) {
+        const defaultClasses: TeacherClassInfo[] = [
+          {
+            classCode: GENERAL_CLASS_CODE,
+            className: GENERAL_CLASS_NAME,
+            teacherId: 'general_admin',
+            teacherName: 'Tim Pembelajaran AtomLab',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            isGeneral: true,
+          },
+          {
+            classCode: 'KIM-X-FASE-E',
+            className: 'Kimia X Fase E',
+            teacherId: 'usr_guru_01',
+            teacherName: 'Dra. Siti Nurhaliza, M.Pd',
+            createdAt: '2026-01-10T08:00:00.000Z',
+          },
+          {
+            classCode: 'GURU-KIMIA-X',
+            className: 'Kelas Kimia Utama',
+            teacherId: 'usr_demo_teacher_01',
+            teacherName: 'Dr. Ahmad Hidayat, M.Pd.',
+            createdAt: '2026-01-01T08:00:00.000Z',
+          },
+        ]
+        window.localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(defaultClasses))
+      } else {
+        // Pastikan Kelas Umum selalu ada di storage
+        const parsed = JSON.parse(rawClasses) as TeacherClassInfo[]
+        if (!parsed.some((c) => c.classCode.toUpperCase() === GENERAL_CLASS_CODE)) {
+          parsed.unshift({
+            classCode: GENERAL_CLASS_CODE,
+            className: GENERAL_CLASS_NAME,
+            teacherId: 'general_admin',
+            teacherName: 'Tim Pembelajaran AtomLab',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            isGeneral: true,
+          })
+          window.localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(parsed))
+        }
+      }
     } catch {
       // In-memory fallback
+    }
+  }
+
+  /**
+   * Mengambil daftar kelas terdaftar dari localStorage
+   */
+  public getRegisteredClasses(): TeacherClassInfo[] {
+    const defaultClasses: TeacherClassInfo[] = [
+      {
+        classCode: GENERAL_CLASS_CODE,
+        className: GENERAL_CLASS_NAME,
+        teacherId: 'general_admin',
+        teacherName: 'Tim Pembelajaran AtomLab',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        isGeneral: true,
+      },
+    ]
+
+    if (typeof window === 'undefined') return defaultClasses
+    try {
+      const raw = window.localStorage.getItem(CLASSES_STORAGE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as TeacherClassInfo[]
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Bersihkan kode default statis lama jika ada yang menempel
+          const cleaned = parsed.filter(
+            (c) => c.classCode.toUpperCase() !== 'KIM-X-FASE-E' && c.classCode.toUpperCase() !== 'GURU-KIMIA-X'
+          )
+          if (!cleaned.some((c) => c.classCode.toUpperCase() === GENERAL_CLASS_CODE)) {
+            cleaned.unshift(defaultClasses[0])
+          }
+          return cleaned
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return defaultClasses
+  }
+
+  /**
+   * Mengambil seluruh daftar kelas secara DINAMIS dari Firebase/Firestore dan lokal:
+   * 1. Selalu memuat "Kelas Umum" (UMUM-01)
+   * 2. Memuat kelas milik masing-masing guru yang terdaftar secara real-time dari Firestore
+   */
+  public async fetchDynamicClasses(): Promise<TeacherClassInfo[]> {
+    const classMap = new Map<string, TeacherClassInfo>()
+
+    // 1. Kelas Umum Bawaan
+    classMap.set(GENERAL_CLASS_CODE, {
+      classCode: GENERAL_CLASS_CODE,
+      className: GENERAL_CLASS_NAME,
+      teacherId: 'general_admin',
+      teacherName: 'Tim Pembelajaran AtomLab',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      isGeneral: true,
+    })
+
+    // 2. Ambil dari Firestore jika terhubung
+    if (isFirebaseConfigured() && db) {
+      try {
+        // a. Ambil dari koleksi 'classes'
+        const classesSnap = await getDocs(collection(db, 'classes'))
+        classesSnap.forEach((docSnap) => {
+          const data = docSnap.data() as any
+          const code = (data.classCode || docSnap.id).toUpperCase().trim()
+          if (!classMap.has(code)) {
+            classMap.set(code, {
+              classCode: code,
+              className: data.className || `Kelas ${data.teacherName || code}`,
+              teacherId: data.teacherId || '',
+              teacherName: data.teacherName || '',
+              createdAt: data.createdAt ? String(data.createdAt) : undefined,
+              isGeneral: code === GENERAL_CLASS_CODE,
+            })
+          }
+        })
+
+        // b. Ambil juga dari koleksi 'users' dengan role 'teacher'
+        const usersSnap = await getDocs(collection(db, 'users'))
+        usersSnap.forEach((userSnap) => {
+          const udata = userSnap.data() as any
+          if (udata.role === 'teacher' && udata.classCode) {
+            const code = udata.classCode.toUpperCase().trim()
+            if (!classMap.has(code)) {
+              classMap.set(code, {
+                classCode: code,
+                className: udata.className || `Kelas ${udata.name || 'Guru'}`,
+                teacherId: userSnap.id,
+                teacherName: udata.name || 'Guru Kimia',
+                createdAt: udata.createdAt ? String(udata.createdAt) : undefined,
+                isGeneral: code === GENERAL_CLASS_CODE,
+              })
+            }
+          }
+        })
+      } catch (err) {
+        console.warn('[Firebase] Gagal sinkron dynamic classes dari Firestore:', err)
+      }
+    }
+
+    // 3. Gabungkan dengan data kelas lokal
+    const localClasses = this.getRegisteredClasses()
+    for (const lc of localClasses) {
+      const code = lc.classCode.toUpperCase().trim()
+      if (!classMap.has(code)) {
+        classMap.set(code, lc)
+      }
+    }
+
+    // Gabungkan dengan guru lokal yang terdaftar
+    const localUsers = this.getRegisteredUsers()
+    for (const u of localUsers) {
+      if (u.role === 'teacher' && u.classCode) {
+        const code = u.classCode.toUpperCase().trim()
+        if (!classMap.has(code)) {
+          classMap.set(code, {
+            classCode: code,
+            className: u.className || `Kelas ${u.name}`,
+            teacherId: u.id,
+            teacherName: u.name,
+            createdAt: u.createdAt,
+            isGeneral: code === GENERAL_CLASS_CODE,
+          })
+        }
+      }
+    }
+
+    const mergedList = Array.from(classMap.values())
+    this.saveRegisteredClasses(mergedList)
+    return mergedList
+  }
+
+  /**
+   * Menyimpan daftar kelas terdaftar ke localStorage
+   */
+  public saveRegisteredClasses(classes: TeacherClassInfo[]): void {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes))
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Membuat Kode Akses Kelas Siswa Unik per Guru (Format: KLS-[3 Huruf Guru]-[3 Angka/Huruf Unik] atau KLS-XXXX)
+   * Memastikan setiap guru dan kelas mendapatkan kode akses yang benar-benar berbeda.
+   */
+  public async generateUniqueClassCode(teacherName?: string, classOrRombelName?: string): Promise<string> {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ' // Alfanumerik jelas tanpa 0/O/1/I
+
+    // Ekstrak prefix yang dipersonalisasi dari nama guru atau nama kelas
+    let prefix = 'KLS'
+    if (teacherName) {
+      // Ambil huruf pertama dari tiap kata nama guru (contoh: "Rika" -> "RIKA", "Siti Rahma" -> "SR")
+      const cleanWords = teacherName.replace(/^(dra|dr|ir|prof|bapak|ibu|pak|bu)\.?\s+/i, '').trim().split(/\s+/)
+      if (cleanWords.length >= 2) {
+        prefix = `KLS-${cleanWords[0].charAt(0).toUpperCase()}${cleanWords[1].charAt(0).toUpperCase()}`
+      } else if (cleanWords.length === 1 && cleanWords[0].length >= 3) {
+        prefix = `KLS-${cleanWords[0].substring(0, 3).toUpperCase()}`
+      }
+    } else if (classOrRombelName) {
+      const cleanRombel = classOrRombelName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+      if (cleanRombel.length >= 3) {
+        prefix = `KLS-${cleanRombel.substring(0, 3)}`
+      }
+    }
+
+    const localClasses = this.getRegisteredClasses()
+    const existingLocalCodes = new Set(localClasses.map((c) => c.classCode.toUpperCase()))
+    existingLocalCodes.add(GENERAL_CLASS_CODE)
+
+    let attempts = 0
+    while (attempts < 50) {
+      attempts++
+      let randomPart = ''
+      const randomLength = prefix.includes('-') ? 3 : 4
+      for (let i = 0; i < randomLength; i++) {
+        randomPart += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      const candidate = `${prefix}${prefix.endsWith('-') ? '' : '-'}${randomPart}`
+
+      // Cek lokal
+      if (existingLocalCodes.has(candidate)) continue
+
+      // Cek Firestore jika tersedia
+      if (db) {
+        try {
+          const classDoc = await getDoc(doc(db, 'classes', candidate))
+          if (classDoc.exists()) continue
+        } catch {
+          // Jika offline atau error, gunakan hasil yang lolos cek lokal
+        }
+      }
+
+      return candidate
+    }
+
+    // Fallback jika loop habis
+    return `KLS-${Date.now().toString(36).substring(3, 7).toUpperCase()}`
+  }
+
+  /**
+   * Validasi Kode Kelas Siswa ke Firestore dan penyimpanan lokal
+   * Mendukung:
+   * 1. Kode Kelas Umum (UMUM-01) -> Siswa masuk ke "Kelas Umum"
+   * 2. Kode Kelas Guru spesifik -> Siswa otomatis terpetakan ke kelas guru tersebut
+   * 3. Menolak kode yang tidak terdaftar dengan pesan error yang jelas
+   */
+  public async validateClassCode(rawCode: string): Promise<{
+    valid: boolean
+    classCode?: string
+    className?: string
+    teacherId?: string
+    teacherName?: string
+    isGeneral?: boolean
+    error?: string
+  }> {
+    const code = (rawCode || '').trim().toUpperCase()
+    if (!code) {
+      return {
+        valid: false,
+        error: `Kode Kelas wajib diisi. Masukkan kode kelas dari guru kimia Anda, atau gunakan kode "${GENERAL_CLASS_CODE}" untuk Kelas Umum.`,
+      }
+    }
+
+    // 1. Dukung KELAS UMUM
+    if (code === GENERAL_CLASS_CODE || code === 'UMUM' || code === 'KELAS-UMUM') {
+      return {
+        valid: true,
+        classCode: GENERAL_CLASS_CODE,
+        className: GENERAL_CLASS_NAME,
+        teacherId: 'general_admin',
+        teacherName: 'Tim Pembelajaran AtomLab',
+        isGeneral: true,
+      }
+    }
+
+    // 2. Cek di Cloud Firestore jika tersedia
+    if (db) {
+      try {
+        // Cek dokumen di koleksi 'classes'
+        const classSnap = await getDoc(doc(db, 'classes', code))
+        if (classSnap.exists()) {
+          const data = classSnap.data()
+          return {
+            valid: true,
+            classCode: code,
+            className: data.className || `Kelas ${data.teacherName || code}`,
+            teacherId: data.teacherId || '',
+            teacherName: data.teacherName || '',
+            isGeneral: false,
+          }
+        }
+
+        // Cek fallback jika guru menyimpan di profil 'users'
+        const usersSnap = await getDoc(doc(db, 'users', code))
+        if (usersSnap.exists() && usersSnap.data().role === 'teacher') {
+          const data = usersSnap.data()
+          return {
+            valid: true,
+            classCode: code,
+            className: data.className || `Kelas ${data.name || code}`,
+            teacherId: usersSnap.id,
+            teacherName: data.name || '',
+            isGeneral: false,
+          }
+        }
+      } catch (err) {
+        console.warn('[Firebase] Gagal verifikasi kode kelas ke Firestore, memeriksa registry lokal:', err)
+      }
+    }
+
+    // 3. Cek di dynamic / registered classes lokal
+    const localClasses = this.getRegisteredClasses()
+    const foundClass = localClasses.find((c) => c.classCode.toUpperCase() === code)
+    if (foundClass) {
+      return {
+        valid: true,
+        classCode: foundClass.classCode.toUpperCase(),
+        className: foundClass.className,
+        teacherId: foundClass.teacherId,
+        teacherName: foundClass.teacherName,
+        isGeneral: foundClass.isGeneral || foundClass.classCode === GENERAL_CLASS_CODE,
+      }
+    }
+
+    // Cek juga di registered users lokal jika guru punya classCode tersebut
+    const localUsers = this.getRegisteredUsers()
+    const teacherUser = localUsers.find(
+      (u) => u.role === 'teacher' && u.classCode && u.classCode.toUpperCase() === code
+    )
+    if (teacherUser) {
+      return {
+        valid: true,
+        classCode: teacherUser.classCode!.toUpperCase(),
+        className: teacherUser.className || `Kelas ${teacherUser.name}`,
+        teacherId: teacherUser.id,
+        teacherName: teacherUser.name,
+        isGeneral: false,
+      }
+    }
+
+    // Dukung juga kode bawaan KIM-X-FASE-E untuk kompatibilitas
+    if (code === 'KIM-X-FASE-E') {
+      return {
+        valid: true,
+        classCode: 'KIM-X-FASE-E',
+        className: 'Kimia X Fase E (Kelas Bawaan)',
+        teacherId: 'usr_guru_01',
+        teacherName: 'Dra. Siti Nurhaliza, M.Pd',
+        isGeneral: false,
+      }
+    }
+
+    return {
+      valid: false,
+      error: `Kode Kelas "${code}" tidak cocok dengan Kelas Umum (${GENERAL_CLASS_CODE}) maupun kode kelas Guru mana pun yang terdaftar. Harap periksa kembali atau gunakan kode "${GENERAL_CLASS_CODE}" untuk bergabung ke Kelas Umum.`,
     }
   }
 
@@ -294,6 +707,8 @@ class AuthService {
         alias: `${this.currentSession.name} (${classPart})${this.previewRoleOverride ? ` [Mode ${roleLabel}]` : ''}`,
         role: effectiveRole,
         classCode: this.currentSession.classCode,
+        className: this.currentSession.className,
+        teacherId: this.currentSession.teacherId,
         schoolName: this.currentSession.schoolName,
         isAuthenticated: true,
       }
@@ -350,6 +765,7 @@ class AuthService {
     password: string
     confirmPassword?: string
     classCode?: string
+    className?: string
     schoolName?: string
     role?: 'student' | 'teacher' | 'admin'
     rememberDevice?: boolean
@@ -380,9 +796,43 @@ class AuthService {
       .join(' ')
 
     const role = params.role || 'student'
-    const classCode = params.classCode?.trim() || 'KIM-X-FASE-E'
     const schoolName = params.schoolName?.trim() || 'SMA Negeri 1 Jakarta'
     const rememberDevice = params.rememberDevice !== false
+
+    let effectiveClassCode = ''
+    let effectiveClassName = ''
+    let effectiveTeacherId = ''
+
+    if (role === 'teacher') {
+      // 1. Guru mendaftar: Nama Kelas dipetakan berdasarkan Nama Guru (dan/atau nama rombel jika diisi)
+      const inputClassName = params.className?.trim()
+      effectiveClassName = inputClassName
+        ? (inputClassName.toLowerCase().includes(formattedName.toLowerCase()) ? inputClassName : `Kelas ${formattedName} (${inputClassName})`)
+        : `Kelas ${formattedName}`
+      // Generate Kode Akses Kelas Siswa Unik (misal: KLS-XXXX)
+      effectiveClassCode = await this.generateUniqueClassCode()
+    } else {
+      // 2. Siswa mendaftar: Kode Kelas (mendukung Kode Kelas Umum UMUM-01 atau kode kelas guru)
+      const rawStudentCode = (params.classCode || '').trim().toUpperCase()
+      if (!rawStudentCode) {
+        return {
+          success: false,
+          error: `Kode Kelas wajib diisi. Masukkan kode kelas dari guru kimia Anda, atau gunakan kode "${GENERAL_CLASS_CODE}" untuk Kelas Umum.`,
+        }
+      }
+
+      const validation = await this.validateClassCode(rawStudentCode)
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: validation.error || `Kode Kelas "${rawStudentCode}" tidak valid atau belum terdaftar.`,
+        }
+      }
+
+      effectiveClassCode = validation.classCode || rawStudentCode
+      effectiveClassName = validation.className || (validation.isGeneral ? GENERAL_CLASS_NAME : 'Kelas Kimia')
+      effectiveTeacherId = validation.teacherId || ''
+    }
 
     // 1. INTEGRASI NYATA KE FIREBASE AUTH & FIRESTORE
     if (isFirebaseConfigured() && auth) {
@@ -396,6 +846,10 @@ class AuthService {
           // ignore
         }
 
+        if (role === 'teacher') {
+          effectiveTeacherId = cred.user.uid
+        }
+
         // Simpan data profil pengguna ke Cloud Firestore
         if (db) {
           try {
@@ -404,13 +858,41 @@ class AuthService {
               name: formattedName,
               email,
               role,
-              classCode,
+              classCode: effectiveClassCode,
+              className: effectiveClassName,
+              teacherId: effectiveTeacherId,
               schoolName,
               createdAt: serverTimestamp(),
               provider: 'firebase-email',
             }, { merge: true })
+
+            // Jika guru, simpan juga pemetaan kelas di koleksi 'classes'
+            if (role === 'teacher') {
+              await setDoc(doc(db, 'classes', effectiveClassCode), {
+                classCode: effectiveClassCode,
+                className: effectiveClassName,
+                teacherId: cred.user.uid,
+                teacherName: formattedName,
+                createdAt: serverTimestamp(),
+              }, { merge: true })
+            }
           } catch (dbErr) {
             console.warn('[Firebase] Gagal menyimpan data profil ke Firestore:', dbErr)
+          }
+        }
+
+        // Simpan juga kelas ke registry lokal untuk ketersediaan offline
+        if (role === 'teacher') {
+          const localClasses = this.getRegisteredClasses()
+          if (!localClasses.some((c) => c.classCode === effectiveClassCode)) {
+            localClasses.push({
+              classCode: effectiveClassCode,
+              className: effectiveClassName,
+              teacherId: cred.user.uid,
+              teacherName: formattedName,
+              createdAt: new Date().toISOString(),
+            })
+            this.saveRegisteredClasses(localClasses)
           }
         }
 
@@ -421,7 +903,9 @@ class AuthService {
           name: formattedName,
           email,
           role,
-          classCode,
+          classCode: effectiveClassCode,
+          className: effectiveClassName,
+          teacherId: effectiveTeacherId,
           schoolName,
           token,
           expiresAt: new Date(Date.now() + sessionDays * 24 * 3600 * 1000).toISOString(),
@@ -451,14 +935,21 @@ class AuthService {
       }
     }
 
+    const newUserId = `usr_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`
+    if (role === 'teacher') {
+      effectiveTeacherId = newUserId
+    }
+
     const newUser: RegisteredUser = {
-      id: `usr_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`,
+      id: newUserId,
       name: formattedName,
       email,
       password,
       passwordHash: password,
       role,
-      classCode,
+      classCode: effectiveClassCode,
+      className: effectiveClassName,
+      teacherId: effectiveTeacherId,
       schoolName,
       createdAt: new Date().toISOString(),
       provider: 'local',
@@ -467,6 +958,20 @@ class AuthService {
     users.push(newUser)
     this.saveRegisteredUsers(users)
 
+    if (role === 'teacher') {
+      const localClasses = this.getRegisteredClasses()
+      if (!localClasses.some((c) => c.classCode === effectiveClassCode)) {
+        localClasses.push({
+          classCode: effectiveClassCode,
+          className: effectiveClassName,
+          teacherId: newUserId,
+          teacherName: formattedName,
+          createdAt: new Date().toISOString(),
+        })
+        this.saveRegisteredClasses(localClasses)
+      }
+    }
+
     const sessionDays = rememberDevice ? 30 : 1
     const session: StoredSession = {
       userId: newUser.id,
@@ -474,6 +979,8 @@ class AuthService {
       email: newUser.email,
       role: newUser.role,
       classCode: newUser.classCode,
+      className: newUser.className,
+      teacherId: newUser.teacherId,
       schoolName: newUser.schoolName,
       token: `jwt_local_${Date.now()}_${newUser.id}`,
       expiresAt: new Date(Date.now() + sessionDays * 24 * 3600 * 1000).toISOString(),
@@ -542,7 +1049,9 @@ class AuthService {
 
         let name = cred.user.displayName || email.split('@')[0]
         let role: 'student' | 'teacher' | 'admin' = expectedRole || 'student'
-        let classCode = customClassCode || 'KIM-X-FASE-E'
+        let classCode = customClassCode || ''
+        let className: string | undefined = undefined
+        let teacherId: string | undefined = undefined
         let schoolName = 'SMA Negeri 1 Jakarta'
 
         // Muat data profil dari Cloud Firestore
@@ -554,14 +1063,41 @@ class AuthService {
               if (data.name) name = data.name
               if (data.role && !expectedRole) role = data.role
               if (data.classCode && !customClassCode) classCode = data.classCode
+              if (data.className) className = data.className
+              if (data.teacherId) teacherId = data.teacherId
               if (data.schoolName) schoolName = data.schoolName
+
+              // Jika guru belum punya kode kelas unik, generate kode unik
+              if (role === 'teacher' && (!classCode || classCode === 'KIM-X-FASE-E')) {
+                classCode = await this.generateUniqueClassCode()
+                className = className || `Kelas ${name}`
+                teacherId = cred.user.uid
+                await setDoc(doc(db, 'classes', classCode), {
+                  classCode,
+                  className,
+                  teacherId: cred.user.uid,
+                  teacherName: name,
+                  createdAt: serverTimestamp(),
+                }, { merge: true })
+              }
 
               // Jika ada custom classCode atau role yang ditentukan saat login, perbarui Firestore
               if (customClassCode || expectedRole) {
+                // Jika student memperbarui classCode saat login, validasi kode tersebut
+                if (customClassCode && role === 'student') {
+                  const val = await this.validateClassCode(customClassCode)
+                  if (val.valid) {
+                    className = val.className
+                    teacherId = val.teacherId
+                  }
+                }
+
                 await setDoc(
                   doc(db, 'users', cred.user.uid),
                   {
                     ...(customClassCode ? { classCode: customClassCode } : {}),
+                    ...(className ? { className } : {}),
+                    ...(teacherId ? { teacherId } : {}),
                     ...(expectedRole ? { role: expectedRole } : {}),
                     lastLoginAt: serverTimestamp(),
                   },
@@ -569,6 +1105,21 @@ class AuthService {
                 )
               }
             } else {
+              if (role === 'teacher') {
+                classCode = await this.generateUniqueClassCode()
+                className = className || `Kelas ${name}`
+                teacherId = cred.user.uid
+                await setDoc(doc(db, 'classes', classCode), {
+                  classCode,
+                  className,
+                  teacherId: cred.user.uid,
+                  teacherName: name,
+                  createdAt: serverTimestamp(),
+                }, { merge: true })
+              } else if (!classCode) {
+                classCode = GENERAL_CLASS_CODE
+              }
+
               // Simpan record dasar jika belum pernah ada
               await setDoc(
                 doc(db, 'users', cred.user.uid),
@@ -578,6 +1129,8 @@ class AuthService {
                   email,
                   role,
                   classCode,
+                  className,
+                  teacherId,
                   schoolName,
                   createdAt: serverTimestamp(),
                   lastLoginAt: serverTimestamp(),
@@ -591,6 +1144,10 @@ class AuthService {
           }
         }
 
+        if (!classCode) {
+          classCode = role === 'teacher' ? await this.generateUniqueClassCode() : GENERAL_CLASS_CODE
+        }
+
         const sessionDays = rememberDevice ? 30 : 1
         const token = await cred.user.getIdToken().catch(() => `fb_jwt_${Date.now()}`)
         const session: StoredSession = {
@@ -599,6 +1156,8 @@ class AuthService {
           email,
           role,
           classCode,
+          className,
+          teacherId,
           schoolName,
           token,
           expiresAt: new Date(Date.now() + sessionDays * 24 * 3600 * 1000).toISOString(),
@@ -637,8 +1196,32 @@ class AuthService {
       }
     }
 
+    if (user.role === 'teacher' && (!user.classCode || user.classCode === 'KIM-X-FASE-E')) {
+      user.classCode = await this.generateUniqueClassCode()
+      user.className = user.className || `Kelas ${user.name}`
+      const localClasses = this.getRegisteredClasses()
+      if (!localClasses.some((c) => c.classCode === user.classCode)) {
+        localClasses.push({
+          classCode: user.classCode,
+          className: user.className,
+          teacherId: user.id,
+          teacherName: user.name,
+          createdAt: new Date().toISOString(),
+        })
+        this.saveRegisteredClasses(localClasses)
+      }
+      this.saveRegisteredUsers(users)
+    }
+
     if (customClassCode) {
       user.classCode = customClassCode
+      if (user.role === 'student') {
+        const val = await this.validateClassCode(customClassCode)
+        if (val.valid) {
+          user.className = val.className
+          user.teacherId = val.teacherId
+        }
+      }
       this.saveRegisteredUsers(users)
     }
 
@@ -648,7 +1231,9 @@ class AuthService {
       name: user.name,
       email: user.email,
       role: expectedRole || user.role,
-      classCode: customClassCode || user.classCode || 'KIM-X-FASE-E',
+      classCode: customClassCode || user.classCode || (user.role === 'teacher' ? 'KLS-TEACHER' : GENERAL_CLASS_CODE),
+      className: user.className,
+      teacherId: user.teacherId,
       schoolName: user.schoolName || 'SMA Negeri 1 Jakarta',
       token: `jwt_local_${Date.now()}_${user.id}`,
       expiresAt: new Date(Date.now() + sessionDays * 24 * 3600 * 1000).toISOString(),
