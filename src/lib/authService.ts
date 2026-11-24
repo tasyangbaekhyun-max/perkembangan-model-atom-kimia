@@ -172,7 +172,7 @@ class AuthService {
             if (db) {
               const userSnap = await getDoc(doc(db, 'users', fbUser.uid))
               if (userSnap.exists()) {
-                const data = userSnap.data()
+                const data = userSnap.data() || {}
                 if (data.name) name = data.name
                 if (data.role) role = data.role
                 if (data.classCode) classCode = data.classCode
@@ -568,7 +568,7 @@ class AuthService {
         // Cek dokumen di koleksi 'classes'
         const classSnap = await getDoc(doc(db, 'classes', code))
         if (classSnap.exists()) {
-          const data = classSnap.data()
+          const data = classSnap.data() || {}
           return {
             valid: true,
             classCode: code,
@@ -581,15 +581,17 @@ class AuthService {
 
         // Cek fallback jika guru menyimpan di profil 'users'
         const usersSnap = await getDoc(doc(db, 'users', code))
-        if (usersSnap.exists() && usersSnap.data().role === 'teacher') {
-          const data = usersSnap.data()
-          return {
-            valid: true,
-            classCode: code,
-            className: data.className || `Kelas ${data.name || code}`,
-            teacherId: usersSnap.id,
-            teacherName: data.name || '',
-            isGeneral: false,
+        if (usersSnap.exists()) {
+          const data = usersSnap.data() || {}
+          if (data.role === 'teacher') {
+            return {
+              valid: true,
+              classCode: code,
+              className: data.className || `Kelas ${data.name || code}`,
+              teacherId: usersSnap.id,
+              teacherName: data.name || '',
+              isGeneral: false,
+            }
           }
         }
       } catch (err) {
@@ -1061,7 +1063,7 @@ class AuthService {
           try {
             const userDoc = await getDoc(doc(db, 'users', cred.user.uid))
             if (userDoc.exists()) {
-              const data = userDoc.data()
+              const data = userDoc.data() || {}
               if (data.name) name = data.name
               if (data.role && !expectedRole) role = data.role
               if (data.classCode && !customClassCode) classCode = data.classCode
@@ -1401,7 +1403,7 @@ class AuthService {
           try {
             const userSnap = await getDoc(doc(db, 'users', user.uid))
             if (userSnap.exists()) {
-              const data = userSnap.data()
+              const data = userSnap.data() || {}
               if (data.name) name = data.name
               if (data.role) role = data.role
               if (data.classCode) classCode = data.classCode
